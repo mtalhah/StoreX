@@ -1,36 +1,382 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Storex — Enterprise Warehouse Management Platform
 
-## Getting Started
+A cloud-native, multi-tenant Warehouse Management System (WMS) built with
+Next.js, Prisma, and WorkOS AuthKit, deployed on Google Cloud (Cloud Run +
+Cloud SQL + BigQuery) with a Datastream CDC analytics pipeline.
 
-First, run the development server:
+**Stack:** Next.js 16 (App Router) · TypeScript · Tailwind CSS 4 · shadcn/ui ·
+AG Grid · Recharts · SWR · Prisma 7 · PostgreSQL · WorkOS AuthKit · BigQuery ·
+Google Cloud Datastream · Cloud Run · Artifact Registry
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+---
+
+## Table of contents
+
+1. [System architecture](#system-architecture)
+2. [Folder structure](#folder-structure)
+3. [Database design](#database-design)
+4. [Authentication flow](#authentication-flow)
+5. [Authorization strategy](#authorization-strategy)
+6. [Multi-tenant isolation](#multi-tenant-isolation)
+7. [Analytics pipeline](#analytics-pipeline)
+8. [REST API](#rest-api)
+9. [Local development](#local-development)
+10. [Deployment](#deployment)
+11. [Environment variables](#environment-variables)
+12. [Architectural decisions & trade-offs](#architectural-decisions--trade-offs)
+13. [Future improvements](#future-improvements)
+
+---
+
+## System architecture
+
+Clean Architecture with dependencies pointing inward only. Frameworks
+(Next.js, Prisma, BigQuery SDK) live at the edges; business rules never
+import them.
+
+```
+┌────────────────────────────────────────────────────────────────┐
+│ Presentation      src/app, src/components                      │
+│   Server Components (layout, guards) · Client islands          │
+│   (AG Grid, Recharts, SWR) · proxy.ts session middleware       │
+├────────────────────────────────────────────────────────────────┤
+│ API               src/app/api/v1/*, src/lib/api                │
+│   Thin route handlers: Zod parse → service call → envelope.    │
+│   withApi() enforces auth + declared permission per endpoint.  │
+├────────────────────────────────────────────────────────────────┤
+│ Application       src/core/application                         │
+│   Services (ALL business logic) · repository ports             │
+│   (interfaces) · TenantContext · permission matrix             │
+├────────────────────────────────────────────────────────────────┤
+│ Domain            src/core/domain                              │
+│   Entities · enums · domain errors. Zero framework imports.    │
+├────────────────────────────────────────────────────────────────┤
+│ Infrastructure    src/core/infrastructure                      │
+│   Prisma repositories → Cloud SQL (OLTP)                       │
+│   BigQuery repository → BigQuery (OLAP)                        │
+│   WorkOS identity sync · composition root (container.ts)       │
+└────────────────────────────────────────────────────────────────┘
+         │                            │
+   Cloud SQL (PostgreSQL) ──Datastream CDC──▶ BigQuery
+   transactional truth                        analytics read model
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Request lifecycle (API): `proxy.ts` verifies the WorkOS session cookie →
+`withApi()` resolves the **TenantContext** (org, user, role, accessible
+warehouse ids) and checks the endpoint's declared permission → a
+request-scoped **service container** is built from that context → the service
+re-checks permissions and applies business rules → repositories execute
+queries that are structurally scoped to the tenant.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Folder structure
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```
+├── prisma/                        # Schema, SQL migrations, seed
+├── infra/
+│   ├── analytics/                 # BigQuery view DDL + Datastream runbook
+│   └── gcp/setup.sh               # One-time GCP provisioning
+├── src/
+│   ├── app/                       # Presentation: pages + route handlers
+│   │   ├── (app)/                 # Authenticated shell (sidebar layout)
+│   │   │   ├── dashboard/         #   BigQuery-backed KPI dashboard
+│   │   │   ├── warehouses/ inventory/ movements/ users/
+│   │   │   └── loading.tsx error.tsx not-found.tsx
+│   │   ├── api/
+│   │   │   ├── auth/callback/     #   WorkOS OAuth callback
+│   │   │   └── v1/                #   REST API (versioned)
+│   │   ├── page.tsx               #   Public landing
+│   │   └── sign-in/
+│   ├── core/
+│   │   ├── domain/                # Entities, enums, errors
+│   │   ├── application/
+│   │   │   ├── auth/              # TenantContext + permission matrix
+│   │   │   ├── ports/             # Repository interfaces
+│   │   │   ├── services/          # Business logic (the only place)
+│   │   │   └── dto/
+│   │   └── infrastructure/
+│   │       ├── db/                # Prisma client (pg driver adapter)
+│   │       ├── repositories/      # Tenant-scoped Prisma repos
+│   │       ├── analytics/         # BigQuery repo + Postgres dev fallback
+│   │       └── container.ts       # Composition root
+│   ├── components/                # UI (shadcn/ui + feature components)
+│   ├── lib/
+│   │   ├── api/                   # Envelope, withApi wrapper, Zod schemas
+│   │   ├── auth/                  # Session → TenantContext, page guards
+│   │   └── client/                # SWR hooks, typed fetch
+│   └── proxy.ts                   # AuthKit session middleware (Next 16)
+├── Dockerfile                     # Multi-stage, standalone output
+├── cloudbuild.yaml                # Build → push → migrate → deploy
+└── docker-compose.yml             # Local PostgreSQL
+```
 
-## Learn More
+## Database design
 
-To learn more about Next.js, take a look at the following resources:
+Normalized OLTP schema for Cloud SQL PostgreSQL ([prisma/schema.prisma](prisma/schema.prisma)):
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+```
+Organization 1──* User 1──* WarehouseAssignment *──1 Warehouse
+Organization 1──* Warehouse 1──* InventoryItem 1──* StockMovement
+                                        StockMovement *──1 User (createdBy)
+```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+| Table | Purpose | Key constraints |
+| --- | --- | --- |
+| `organizations` | Tenant root | unique `workosOrgId` |
+| `users` | Members; linked to WorkOS on first sign-in | unique `(organizationId, email)`, unique `workosUserId` |
+| `warehouses` | Name / location / capacity | unique `(organizationId, name)`, `CHECK capacity > 0` |
+| `warehouse_assignments` | Manager/operator access grants | PK `(userId, warehouseId)` |
+| `inventory_items` | SKU stock per warehouse | unique `(warehouseId, sku)`, `CHECK quantity >= 0` |
+| `stock_movements` | Immutable movement ledger | `CHECK quantity > 0`, FK `createdById` RESTRICT |
 
-## Deploy on Vercel
+Design notes:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+- **`organizationId` is denormalized** onto `inventory_items` and
+  `stock_movements` (derivable via warehouse) so the repository layer can
+  tenant-filter every query without joins and composite indexes stay cheap.
+- **Quantity is a materialized aggregate.** Every change flows through
+  `StockMovementService.record()`, which validates the business rules and
+  delegates to a repository method that atomically inserts the movement and
+  conditionally updates the quantity (`WHERE quantity >= :qty` for outbound)
+  in one transaction — overselling is impossible even under concurrency, and
+  the `CHECK` constraint is the final backstop.
+- Movements are immutable; users with recorded movements can only be
+  deactivated, never deleted (FK `RESTRICT` keeps the audit trail intact).
+- Indexes match the read paths: `(organizationId, occurredAt DESC)`,
+  `(warehouseId, occurredAt DESC)`, `(organizationId, sku)`, etc.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## Authentication flow
+
+WorkOS AuthKit (hosted UI, sealed HTTP-only session cookies):
+
+1. `src/proxy.ts` (`authkitProxy`) runs on every matched request: verifies /
+   refreshes the session, redirects anonymous users to hosted sign-in.
+2. WorkOS redirects back to `/api/auth/callback` (`handleAuth`), which seals
+   the session into an encrypted cookie and forwards to `/dashboard`.
+3. On the first authenticated request, `UserSyncService.resolve()` maps the
+   WorkOS identity to an internal user:
+   - already linked (`workosUserId`) → normal sign-in;
+   - **provisioned by an admin** (email match, unlinked) → link identity;
+   - unknown → **self-serve signup**: a fresh organization is created with
+     the user as its Admin (new tenants start empty).
+4. `getTenantContext()` (memoized per request with React `cache()`) builds
+   the TenantContext used by every layer. Deactivated users are rejected here.
+
+## Authorization strategy
+
+Three roles — `ADMIN`, `MANAGER` (Warehouse Manager), `OPERATOR` — mapped to
+fine-grained permissions in one declarative table
+([permissions.ts](src/core/application/auth/permissions.ts)):
+
+| Permission | Admin | Manager | Operator |
+| --- | :-: | :-: | :-: |
+| users:manage / users:read | ✅ | — | — |
+| warehouses:manage | ✅ | — | — |
+| warehouses:read | ✅ | ✅ (assigned) | ✅ (own) |
+| inventory:manage | ✅ | ✅ (assigned) | — |
+| inventory:read | ✅ | ✅ (assigned) | ✅ (own) |
+| movements:create | ✅ | ✅ (assigned) | ✅ (own) |
+| movements:read | ✅ | ✅ (assigned) | ✅ (own) |
+| analytics:read | ✅ | ✅ (assigned) | — |
+
+Enforced at **three** levels — hiding UI is never the security boundary:
+
+1. **API layer** — `withApi(permission, handler)` rejects before any handler
+   code runs (401 unauthenticated, 403 unauthorized).
+2. **Service layer** — every service method calls `authorize(ctx, permission)`
+   again and owns invariants (operators have exactly one warehouse, managers
+   at least one, admins none; you cannot change your own role or delete
+   yourself).
+3. **Repository layer** — structural scoping (next section), so even a buggy
+   service cannot read or write outside the caller's scope.
+
+## Multi-tenant isolation
+
+The load-bearing rule: **repositories cannot be constructed without a
+TenantContext, and every query they emit includes the tenant scope.**
+
+- The composition root ([container.ts](src/core/infrastructure/container.ts))
+  is the only way to obtain services/repositories, and it requires the
+  context resolved from the verified session.
+- Each repository derives a `scopedWhere` from the context: always
+  `organizationId = ctx.organizationId`, plus
+  `warehouseId IN ctx.accessibleWarehouseIds` for warehouse-scoped roles
+  (Admins carry `null` = org-wide). Route handlers never write tenant
+  filters — isolation is not a per-endpoint convention that can be forgotten.
+- Writes use the same scoped `WHERE` (`updateMany`/`deleteMany` + guard),
+  so cross-tenant ids cannot be mutated either.
+- Cross-tenant or out-of-scope lookups return **404, not 403** — no
+  existence leakage.
+- User-supplied filters (e.g. `?warehouseId=`) only narrow *within* the
+  scope; requesting a foreign warehouse yields an empty page.
+- The single deliberately unscoped repository
+  ([identity-repository](src/core/application/ports/identity-repository.ts))
+  exists only for the sign-in bootstrap and is unreachable from business
+  services.
+- BigQuery analytics queries are parameterized with the same
+  organization + warehouse scope.
+
+## Analytics pipeline
+
+OLTP and OLAP are fully separated. The dashboard reads **exclusively from
+BigQuery** through the `AnalyticsRepository` port.
+
+```
+Cloud SQL (Postgres) ──logical replication──▶ Datastream ──CDC merge──▶
+BigQuery storex_raw (replica tables) ──SQL views──▶ storex_analytics
+(dim_warehouse · fact_inventory_current · fact_stock_movement ·
+agg_daily_warehouse_flows) ──parameterized queries──▶ /api/v1/analytics/*
+```
+
+- **Why Datastream:** managed serverless CDC, no application dual-writes to
+  drift, backfills handled, freshness configurable (5 min here). Full
+  trade-off table in [infra/analytics/datastream-setup.md](infra/analytics/datastream-setup.md).
+- **Analytics schema ≠ OLTP mirror:** the app queries a small star-style
+  read model (dimensions/facts/daily aggregate) defined in
+  [create_analytics_views.sql](infra/analytics/create_analytics_views.sql).
+  The `users` table is deliberately not replicated (no PII in the warehouse).
+- Metrics: stock levels, movement velocity, inbound-vs-outbound trend,
+  warehouse utilization, inventory distribution, plus an **operational
+  insight** per SKU (Low stock / Dead stock / Fast mover / Healthy) with
+  thresholds shared between implementations
+  ([analytics-thresholds.ts](src/core/application/analytics-thresholds.ts)).
+- **Local development:** `ANALYTICS_SOURCE=postgres` swaps in a
+  Postgres-backed implementation of the same port so the dashboard works
+  without GCP. The container **refuses** this source in production.
+
+## REST API
+
+Versioned under `/api/v1`. Consistent envelope, Zod validation, pagination,
+filtering, sorting:
+
+```
+GET/POST            /api/v1/warehouses          ?page&pageSize&sortBy&sortDir&search
+GET/PATCH/DELETE    /api/v1/warehouses/:id
+GET/POST            /api/v1/inventory           ?…&warehouseId
+GET/PATCH/DELETE    /api/v1/inventory/:id
+GET/POST            /api/v1/movements           ?…&warehouseId&type&from&to
+GET/POST            /api/v1/users               ?…&role          (admin)
+GET/PATCH/DELETE    /api/v1/users/:id                            (admin)
+GET                 /api/v1/analytics/{kpis,trend,utilization,insights}
+GET                 /api/v1/me
+```
+
+```jsonc
+// success                                   // failure
+{ "success": true,                           { "success": false,
+  "data": [...],                               "error": {
+  "meta": { "page": 1, "pageSize": 25,           "code": "INSUFFICIENT_STOCK",
+            "totalItems": 128,                    "message": "Cannot move 50 units…",
+            "totalPages": 6 } }                   "details": { … } } }
+```
+
+Domain error codes map to transport codes in one place: 400 validation,
+401/403 auth, 404 not-found (incl. cross-tenant), 409 conflict/stock/capacity,
+422 business-rule violation.
+
+## Local development
+
+Prereqs: Node 22+, Docker, a free [WorkOS](https://dashboard.workos.com) account.
+
+```bash
+npm install
+docker compose up -d                  # local PostgreSQL 16
+cp .env.example .env                  # fill in the WorkOS values
+npx prisma migrate deploy && npx prisma db seed
+npm run dev                           # http://localhost:3000
+npm run smoke                         # exercises services/repos against the seeded DB
+```
+
+WorkOS dashboard setup (free tier): create an app → copy `WORKOS_API_KEY` and
+`WORKOS_CLIENT_ID` → add redirect URI `http://localhost:3000/api/auth/callback`.
+
+The seed creates the **Acme Logistics** demo tenant: 3 warehouses, 6 users,
+~28 SKUs, and ~90 days of movement history. To sign in as a seeded role, set
+`SEED_ADMIN_EMAIL` (and/or `SEED_MANAGER_EMAIL`, `SEED_OPERATOR_EMAIL`) to an
+email you can authenticate with **before** seeding — first sign-in links the
+WorkOS identity by email. Signing in with any other email self-serves a brand
+new empty organization, which is also the quickest way to see tenant isolation.
+
+## Deployment
+
+```bash
+# 1. One-time provisioning (APIs, Artifact Registry, Cloud SQL, BigQuery,
+#    Secret Manager, IAM):
+PROJECT_ID=my-project bash infra/gcp/setup.sh
+
+# 2. Update the WorkOS secrets in Secret Manager with real values.
+
+# 3. Build → push → migrate → deploy (Cloud Build):
+gcloud builds submit --config cloudbuild.yaml \
+  --substitutions=_REGION=europe-west1,_SQL_INSTANCE=my-project:europe-west1:storex-pg
+
+# 4. Point the WorkOS redirect URI at https://<cloud-run-url>/api/auth/callback
+#    and refresh the storex-workos-redirect-uri secret.
+
+# 5. CDC pipeline: follow infra/analytics/datastream-setup.md
+```
+
+The [Dockerfile](Dockerfile) is a multi-stage build producing the Next.js
+**standalone** output on `node:22-alpine`, running as a non-root user on
+port 8080. Migrations run as a release step in Cloud Build (`prisma migrate
+deploy`), never at container boot — Cloud Run instances must start fast and
+must not race each other on schema changes.
+
+## Environment variables
+
+| Variable | Scope | Description |
+| --- | --- | --- |
+| `DATABASE_URL` | secret | Postgres connection string (Cloud SQL socket path in prod) |
+| `WORKOS_API_KEY` | secret | WorkOS secret key |
+| `WORKOS_CLIENT_ID` | secret | WorkOS client id |
+| `WORKOS_COOKIE_PASSWORD` | secret | ≥32-char session cookie encryption key |
+| `WORKOS_REDIRECT_URI` | config | Must match the WorkOS dashboard entry |
+| `ANALYTICS_SOURCE` | config | `bigquery` (prod) · `postgres` (local dev only) |
+| `GCP_PROJECT_ID` | config | BigQuery project |
+| `BIGQUERY_DATASET` | config | Analytics dataset (default `storex_analytics`) |
+| `SEED_*_EMAIL` | dev | Optional seed sign-in emails |
+
+## Architectural decisions & trade-offs
+
+1. **Tenant scoping in repository constructors** (vs. Postgres RLS, vs.
+   per-query filters). Per-query filters are forgettable; RLS is the gold
+   standard but couples policies to DB session state (`SET app.org_id`),
+   complicating pooling and local DX. Constructor-injected scope gives
+   compile-time-visible, testable isolation with one obvious place to audit.
+   RLS remains a compatible *additional* hardening step (see below).
+2. **Movement-driven quantities with a conditional atomic update.** The
+   materialized `quantity` keeps reads O(1); correctness comes from the
+   `UPDATE … WHERE quantity >= :qty` guard inside the movement transaction
+   plus a DB `CHECK`. Trade-off: warehouse *capacity* is checked
+   pre-transaction (a concurrent inbound can overshoot slightly) — accepted
+   to keep the hot write path free of serializable transactions; noted as a
+   future advisory-lock improvement.
+3. **Datastream CDC over dual-writes/batch ELT** — see
+   [the runbook](infra/analytics/datastream-setup.md). Accepted cost:
+   minutes-level dashboard staleness.
+4. **Swappable analytics port with a dev-only Postgres implementation.**
+   Keeps the "dashboard reads only BigQuery" production rule (enforced in the
+   container) without making local development depend on a GCP project.
+5. **Self-serve org creation on unknown sign-in.** Demonstrates tenant
+   provisioning without an ops step; a real deployment might gate this behind
+   invitations or WorkOS Organizations + SSO per tenant.
+6. **Server-driven pagination/sorting with AG Grid as the renderer** rather
+   than AG Grid's client-side model — the API stays the source of truth and
+   the pattern scales past in-memory datasets.
+7. **Prisma 7 with the pg driver adapter** — no Rust query engine binary,
+   smaller Cloud Run images, first-class TS client.
+
+## Future improvements
+
+- **Postgres RLS** as defense-in-depth beneath the repository scoping.
+- **Idempotency keys** on `POST /movements` for safe client retries.
+- **Cursor-based pagination** for the movements ledger at scale.
+- **Warehouse capacity under advisory locks** to close the concurrent-inbound
+  overshoot window.
+- **WorkOS Organizations + SSO/SCIM** per tenant (enterprise IdP onboarding),
+  org switcher for multi-org membership.
+- **Materialized BigQuery aggregates + BI Engine** when dashboard volume grows.
+- **Audit log table** for administrative actions (user/warehouse changes).
+- **Unit/integration test suites** (service-layer rules, repository scoping
+  against a disposable Postgres, API contract tests) wired into Cloud Build.
+- **Observability**: structured request logging, OpenTelemetry traces to
+  Cloud Trace, SLO dashboards.

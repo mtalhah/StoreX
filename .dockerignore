@@ -1,0 +1,15 @@
+node_modules
+.next
+.git
+.env*
+!.env.example
+*.md
+!README.md
+.claude
+CLAUDE.md
+AGENTS.md
+src/generated
+Dockerfile
+docker-compose.yml
+cloudbuild.yaml
+infra

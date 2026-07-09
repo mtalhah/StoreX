@@ -1,0 +1,155 @@
+// Storex — transactional (OLTP) schema for Cloud SQL PostgreSQL.
+//
+// Multi-tenancy notes:
+//  - Every tenant-owned table carries `organizationId`. On InventoryItem and
+//    StockMovement this is intentionally denormalized (it is derivable via the
+//    warehouse) so the repository layer can apply tenant filtering on every
+//    query without joins, and so a compound FK/index keeps cross-tenant
+//    references structurally impossible to express cheaply.
+//  - Warehouse-level access (managers/operators) is modeled via
+//    WarehouseAssignment and enforced in the repository layer.
+//  - Inventory quantity is a materialized aggregate owned by the service
+//    layer: it is only ever written inside the same transaction that inserts
+//    the StockMovement row. CHECK constraints in the migration guard the
+//    invariants at the database level as a last line of defense.
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  ADMIN
+  MANAGER
+  OPERATOR
+}
+
+enum MovementType {
+  INBOUND
+  OUTBOUND
+}
+
+model Organization {
+  id           String   @id @default(cuid())
+  /// WorkOS organization id (org_...) once linked; nullable for self-serve orgs.
+  workosOrgId  String?  @unique
+  name         String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  users          User[]
+  warehouses     Warehouse[]
+  inventoryItems InventoryItem[]
+  stockMovements StockMovement[]
+
+  @@map("organizations")
+}
+
+model User {
+  id             String   @id @default(cuid())
+  /// WorkOS user id (user_...). Nullable until the provisioned user first signs in.
+  workosUserId   String?  @unique
+  email          String
+  firstName      String?
+  lastName       String?
+  role           UserRole
+  organizationId String
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  warehouseAssignments WarehouseAssignment[]
+  stockMovements       StockMovement[]
+
+  // An email is unique within a tenant, not globally: the same person may be
+  // provisioned into two organizations.
+  @@unique([organizationId, email])
+  @@index([organizationId])
+  @@map("users")
+}
+
+model Warehouse {
+  id             String   @id @default(cuid())
+  organizationId String
+  name           String
+  location       String
+  /// Maximum number of stock units the warehouse can hold.
+  capacity       Int
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization   Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  assignments    WarehouseAssignment[]
+  inventoryItems InventoryItem[]
+  stockMovements StockMovement[]
+
+  @@unique([organizationId, name])
+  @@index([organizationId])
+  @@map("warehouses")
+}
+
+/// Grants a user access to a warehouse. Managers may hold many assignments;
+/// operators hold exactly one (enforced by UserService, which owns the rule).
+model WarehouseAssignment {
+  userId      String
+  warehouseId String
+  createdAt   DateTime @default(now())
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  warehouse Warehouse @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+
+  @@id([userId, warehouseId])
+  @@index([warehouseId])
+  @@map("warehouse_assignments")
+}
+
+model InventoryItem {
+  id             String   @id @default(cuid())
+  organizationId String
+  warehouseId    String
+  sku            String
+  name           String
+  /// Materialized aggregate of stock movements; written only by
+  /// StockMovementService inside the movement transaction. CHECK (quantity >= 0).
+  quantity       Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  organization Organization    @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  warehouse    Warehouse       @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  movements    StockMovement[]
+
+  // The same SKU may exist in many warehouses; it is unique per warehouse.
+  @@unique([warehouseId, sku])
+  @@index([organizationId])
+  @@index([organizationId, sku])
+  @@map("inventory_items")
+}
+
+model StockMovement {
+  id              String       @id @default(cuid())
+  organizationId  String
+  warehouseId     String
+  inventoryItemId String
+  type            MovementType
+  /// Units moved; always positive, direction comes from `type`. CHECK (quantity > 0).
+  quantity        Int
+  note            String?
+  createdById     String
+  occurredAt      DateTime     @default(now())
+
+  organization  Organization  @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  warehouse     Warehouse     @relation(fields: [warehouseId], references: [id], onDelete: Cascade)
+  inventoryItem InventoryItem @relation(fields: [inventoryItemId], references: [id], onDelete: Cascade)
+  createdBy     User          @relation(fields: [createdById], references: [id])
+
+  @@index([organizationId, occurredAt(sort: Desc)])
+  @@index([warehouseId, occurredAt(sort: Desc)])
+  @@index([inventoryItemId, occurredAt(sort: Desc)])
+  @@map("stock_movements")
+}

@@ -1,0 +1,23 @@
+# Local development infrastructure. The app itself runs with `npm run dev`;
+# only stateful services live in compose.
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: storex-postgres
+    environment:
+      POSTGRES_USER: storex
+      POSTGRES_PASSWORD: storex
+      POSTGRES_DB: storex
+    ports:
+      # Host port 5433 to avoid clashing with any locally installed Postgres.
+      - '5433:5432'
+    volumes:
+      - storex-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U storex -d storex']
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+volumes:
+  storex-pgdata:

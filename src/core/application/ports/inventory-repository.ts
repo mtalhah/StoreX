@@ -1,0 +1,38 @@
+import type { InventoryItem } from '@/core/domain/entities';
+import type { Paginated, PageParams, SortDir } from '../dto/common';
+
+export interface InventoryItemWithWarehouse extends InventoryItem {
+  warehouseName: string;
+}
+
+export type InventorySortField = 'sku' | 'name' | 'quantity' | 'updatedAt';
+
+export interface InventoryListQuery extends PageParams {
+  sortBy: InventorySortField;
+  sortDir: SortDir;
+  search?: string;
+  warehouseId?: string;
+}
+
+export interface CreateInventoryItemData {
+  warehouseId: string;
+  sku: string;
+  name: string;
+}
+
+export interface UpdateInventoryItemData {
+  sku?: string;
+  name?: string;
+}
+
+/** Tenant- and warehouse-scoped; see WarehouseRepository contract note. */
+export interface InventoryRepository {
+  findMany(query: InventoryListQuery): Promise<Paginated<InventoryItemWithWarehouse>>;
+  findById(id: string): Promise<InventoryItemWithWarehouse | null>;
+  /** Quantity always starts at 0 — stock only enters through movements. */
+  create(data: CreateInventoryItemData): Promise<InventoryItem>;
+  update(id: string, data: UpdateInventoryItemData): Promise<InventoryItem | null>;
+  delete(id: string): Promise<boolean>;
+  /** Current total units stored in a warehouse (for capacity checks). */
+  totalQuantityInWarehouse(warehouseId: string): Promise<number>;
+}
