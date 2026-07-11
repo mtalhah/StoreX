@@ -30,19 +30,24 @@ const rand = mulberry32(20260709);
 const randInt = (min: number, max: number) => min + Math.floor(rand() * (max - min + 1));
 const pick = <T>(arr: T[]): T => arr[Math.floor(rand() * arr.length)];
 
-const CATALOG: Array<{ sku: string; name: string }> = [
-  { sku: 'ELC-1001', name: 'Wireless Barcode Scanner' },
-  { sku: 'ELC-1002', name: 'Thermal Label Printer' },
-  { sku: 'ELC-1003', name: 'Rugged Handheld Terminal' },
-  { sku: 'PKG-2001', name: 'Corrugated Box 40x30x30' },
-  { sku: 'PKG-2002', name: 'Stretch Wrap Roll 500mm' },
-  { sku: 'PKG-2003', name: 'Pallet EUR EPAL' },
-  { sku: 'SAF-3001', name: 'High-Vis Safety Vest' },
-  { sku: 'SAF-3002', name: 'Steel-Toe Boots Size 43' },
-  { sku: 'EQP-4001', name: 'Hand Pallet Truck 2.5t' },
-  { sku: 'EQP-4002', name: 'Picking Cart 3-Shelf' },
-  { sku: 'CON-5001', name: 'Zebra Ribbon 110mm' },
-  { sku: 'CON-5002', name: 'Shipping Labels 100x150 (1k)' },
+// storageUnitsPerItem: illustrates the full range the capacity model is
+// meant to handle — dense consumables that barely register (labels, ribbon,
+// needle-scale items) up through bulky equipment that eats a warehouse's
+// space fast (pallets, carts, hand trucks). See README "Warehouse capacity
+// model": usedCapacity = sum(quantity * storageUnitsPerItem).
+const CATALOG: Array<{ sku: string; name: string; storageUnitsPerItem: number }> = [
+  { sku: 'ELC-1001', name: 'Wireless Barcode Scanner', storageUnitsPerItem: 0.05 },
+  { sku: 'ELC-1002', name: 'Thermal Label Printer', storageUnitsPerItem: 0.3 },
+  { sku: 'ELC-1003', name: 'Rugged Handheld Terminal', storageUnitsPerItem: 0.05 },
+  { sku: 'PKG-2001', name: 'Corrugated Box 40x30x30', storageUnitsPerItem: 0.02 },
+  { sku: 'PKG-2002', name: 'Stretch Wrap Roll 500mm', storageUnitsPerItem: 0.05 },
+  { sku: 'PKG-2003', name: 'Pallet EUR EPAL', storageUnitsPerItem: 4 },
+  { sku: 'SAF-3001', name: 'High-Vis Safety Vest', storageUnitsPerItem: 0.01 },
+  { sku: 'SAF-3002', name: 'Steel-Toe Boots Size 43', storageUnitsPerItem: 0.05 },
+  { sku: 'EQP-4001', name: 'Hand Pallet Truck 2.5t', storageUnitsPerItem: 8 },
+  { sku: 'EQP-4002', name: 'Picking Cart 3-Shelf', storageUnitsPerItem: 6 },
+  { sku: 'CON-5001', name: 'Zebra Ribbon 110mm', storageUnitsPerItem: 0.02 },
+  { sku: 'CON-5002', name: 'Shipping Labels 100x150 (1k)', storageUnitsPerItem: 0.001 },
 ];
 
 async function main() {
@@ -112,6 +117,7 @@ async function main() {
           sku: product.sku,
           name: product.name,
           quantity: 0,
+          storageUnitsPerItem: product.storageUnitsPerItem,
         },
       });
       itemCount++;

@@ -17,6 +17,11 @@ export function formatPercent(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
+/** Trims to a few significant decimals without noisy trailing zeros — e.g. 0.001, 4, 0.25. */
+export function formatDecimal(value: number, maxFractionDigits = 4): string {
+  return new Intl.NumberFormat('en-US', { maximumFractionDigits: maxFractionDigits }).format(value);
+}
+
 export function formatDate(value: string | Date): string {
   return dateFmt.format(typeof value === 'string' ? new Date(value) : value);
 }

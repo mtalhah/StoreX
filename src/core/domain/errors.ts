@@ -72,10 +72,11 @@ export class InsufficientStockError extends DomainError {
 
 export class CapacityExceededError extends DomainError {
   readonly code = 'CAPACITY_EXCEEDED';
-  constructor(warehouseName: string, requested: number, remainingCapacity: number) {
+  /** `requiredCapacity`/`remainingCapacity` are in storage units, not item units. */
+  constructor(warehouseName: string, requiredCapacity: number, remainingCapacity: number) {
     super(
-      `Receiving ${requested} units would exceed the capacity of ${warehouseName} (${remainingCapacity} units of space remaining).`,
-      { warehouseName, requested, remainingCapacity },
+      `Receiving this quantity would require ${requiredCapacity} storage units, but ${warehouseName} only has ${remainingCapacity} remaining.`,
+      { warehouseName, requiredCapacity, remainingCapacity },
     );
   }
 }

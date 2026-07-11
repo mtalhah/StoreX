@@ -1,7 +1,7 @@
-import { BusinessRuleViolationError, NotFoundError } from '@/core/domain/errors';
+import { BusinessRuleViolationError, NotFoundError, ValidationError } from '@/core/domain/errors';
 import type { InventoryItem } from '@/core/domain/entities';
 import { authorize, Permission } from '../auth/permissions';
-import { canAccessWarehouse, type TenantContext } from '../auth/tenant-context';
+import type { TenantContext } from '../auth/tenant-context';
 import type { Paginated } from '../dto/common';
 import type {
   CreateInventoryItemData,
@@ -10,11 +10,13 @@ import type {
   InventoryRepository,
   UpdateInventoryItemData,
 } from '../ports/inventory-repository';
+import type { WarehouseRepository } from '../ports/warehouse-repository';
 
 export class InventoryService {
   constructor(
     private readonly ctx: TenantContext,
     private readonly inventory: InventoryRepository,
+    private readonly warehouses: WarehouseRepository,
   ) {}
 
   async list(query: InventoryListQuery): Promise<Paginated<InventoryItemWithWarehouse>> {
@@ -31,17 +33,28 @@ export class InventoryService {
 
   async create(data: CreateInventoryItemData): Promise<InventoryItem> {
     authorize(this.ctx, Permission.InventoryManage);
-    // The repository is warehouse-scoped anyway; this explicit check exists
-    // so an out-of-scope warehouse reads as "not found" before we attempt a
-    // write that would violate the FK.
-    if (!canAccessWarehouse(this.ctx, data.warehouseId)) {
-      throw new NotFoundError('Warehouse', data.warehouseId);
+    // Authoritative existence + scope check: WarehouseRepository.findById is
+    // itself tenant- and warehouse-scoped, so this returns null both for a
+    // warehouse in a foreign organization and for one outside this role's
+    // assigned warehouses. Without this, an Admin's unrestricted scope
+    // (accessibleWarehouseIds === null) would let any warehouseId through,
+    // creating an inventory_items row whose organizationId/warehouseId pair
+    // don't actually belong together.
+    const warehouse = await this.warehouses.findById(data.warehouseId);
+    if (!warehouse) throw new NotFoundError('Warehouse', data.warehouseId);
+
+    if (data.storageUnitsPerItem !== undefined && data.storageUnitsPerItem <= 0) {
+      throw new ValidationError('Storage units per item must be positive.');
     }
+
     return this.inventory.create(data);
   }
 
   async update(id: string, data: UpdateInventoryItemData): Promise<InventoryItem> {
     authorize(this.ctx, Permission.InventoryManage);
+    if (data.storageUnitsPerItem !== undefined && data.storageUnitsPerItem <= 0) {
+      throw new ValidationError('Storage units per item must be positive.');
+    }
     const updated = await this.inventory.update(id, data);
     if (!updated) throw new NotFoundError('Inventory item', id);
     return updated;

@@ -951,7 +951,10 @@ export type $WarehousePayload<ExtArgs extends runtime.Types.Extensions.InternalA
     name: string
     location: string
     /**
-     * Maximum number of stock units the warehouse can hold.
+     * Maximum number of storage units available in the warehouse. This is a
+     * space measure, not a raw item count: usage is computed as
+     * sum(inventoryItem.quantity * inventoryItem.storageUnitsPerItem), so a
+     * warehouse fills based on how much physical space its stock occupies.
      */
     capacity: number
     createdAt: Date

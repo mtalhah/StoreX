@@ -123,9 +123,9 @@ Organization 1──* Warehouse 1──* InventoryItem 1──* StockMovement
 | --- | --- | --- |
 | `organizations` | Tenant root | unique `workosOrgId` |
 | `users` | Members; linked to WorkOS on first sign-in | unique `(organizationId, email)`, unique `workosUserId` |
-| `warehouses` | Name / location / capacity | unique `(organizationId, name)`, `CHECK capacity > 0` |
+| `warehouses` | Name / location / capacity (storage units) | unique `(organizationId, name)`, `CHECK capacity > 0` |
 | `warehouse_assignments` | Manager/operator access grants | PK `(userId, warehouseId)` |
-| `inventory_items` | SKU stock per warehouse | unique `(warehouseId, sku)`, `CHECK quantity >= 0` |
+| `inventory_items` | SKU stock + storage ratio per warehouse | unique `(warehouseId, sku)`, `CHECK quantity >= 0`, `CHECK storageUnitsPerItem > 0` |
 | `stock_movements` | Immutable movement ledger | `CHECK quantity > 0`, FK `createdById` RESTRICT |
 
 Design notes:
@@ -139,6 +139,20 @@ Design notes:
   conditionally updates the quantity (`WHERE quantity >= :qty` for outbound)
   in one transaction — overselling is impossible even under concurrency, and
   the `CHECK` constraint is the final backstop.
+- **Warehouse capacity model.** `warehouse.capacity` is a count of *storage
+  units*, not items — a warehouse's used capacity is
+  `sum(inventoryItem.quantity * inventoryItem.storageUnitsPerItem)`, so a
+  pallet of hand trucks and a box of needles consume space proportional to
+  how bulky they actually are, not how many of them there are.
+  `storageUnitsPerItem` (`Decimal(12,6)`, not `Float`, to avoid binary
+  floating-point drift when many fractional ratios are summed) is the
+  canonical stored value. The create/edit UI and API also accept its
+  inverse, `itemsPerStorageUnit` (e.g. "1000 needles per storage unit"),
+  converting it via `storageUnitsPerItem = 1 / itemsPerStorageUnit` at the
+  API boundary — the two are mutually exclusive on a single request. Every
+  capacity check (inbound-movement rejection, capacity-reduction guard,
+  dashboard utilization) is computed from this weighted sum, never from raw
+  quantity.
 - Movements are immutable; users with recorded movements can only be
   deactivated, never deleted (FK `RESTRICT` keeps the audit trail intact).
 - Indexes match the read paths: `(organizationId, occurredAt DESC)`,
@@ -204,6 +218,13 @@ TenantContext, and every query they emit includes the tenant scope.**
   filters — isolation is not a per-endpoint convention that can be forgotten.
 - Writes use the same scoped `WHERE` (`updateMany`/`deleteMany` + guard),
   so cross-tenant ids cannot be mutated either.
+- **Row creation is checked explicitly.** Unlike updates/deletes, an insert
+  has no existing row to scope a `WHERE` against, so services that create a
+  row referencing another tenant-scoped entity look it up first — e.g.
+  `InventoryService.create()` calls `WarehouseRepository.findById()` before
+  creating an `inventory_items` row, so a warehouse id from another
+  organization (or outside an Admin's — deliberately unrestricted — scope
+  check) can never end up paired with the caller's `organizationId`.
 - Cross-tenant or out-of-scope lookups return **404, not 403** — no
   existence leakage.
 - User-supplied filters (e.g. `?warehouseId=`) only narrow *within* the
@@ -234,6 +255,14 @@ agg_daily_warehouse_flows) ──parameterized queries──▶ /api/v1/analytic
   read model (dimensions/facts/daily aggregate) defined in
   [create_analytics_views.sql](infra/analytics/create_analytics_views.sql).
   The `users` table is deliberately not replicated (no PII in the warehouse).
+  `fact_inventory_current` precomputes `used_capacity` (`quantity *
+  storage_units_per_item`) and `fact_stock_movement` precomputes
+  `used_capacity_delta` per movement the same way, so every downstream
+  query — on-hand/inbound/outbound KPIs, the inbound-vs-outbound trend
+  chart, warehouse utilization — sums the same storage-weighted measure the
+  OLTP side uses, never a raw quantity. The one KPI that stays a raw count
+  is movement velocity (movement events
+  per day, a cadence measure, not a volume).
 - Metrics: stock levels, movement velocity, inbound-vs-outbound trend,
   warehouse utilization, inventory distribution, plus an **operational
   insight** per SKU (Low stock / Dead stock / Fast mover / Healthy) with
@@ -346,23 +375,44 @@ must not race each other on schema changes.
 2. **Movement-driven quantities with a conditional atomic update.** The
    materialized `quantity` keeps reads O(1); correctness comes from the
    `UPDATE … WHERE quantity >= :qty` guard inside the movement transaction
-   plus a DB `CHECK`. Trade-off: warehouse *capacity* is checked
-   pre-transaction (a concurrent inbound can overshoot slightly) — accepted
-   to keep the hot write path free of serializable transactions; noted as a
-   future advisory-lock improvement.
-3. **Datastream CDC over dual-writes/batch ELT** — see
+   plus a DB `CHECK`. Trade-off: warehouse *capacity* — `requiredCapacity =
+   quantity * item.storageUnitsPerItem` compared against the warehouse's
+   summed `usedCapacity` — is checked pre-transaction (a concurrent inbound
+   can overshoot slightly) — accepted to keep the hot write path free of
+   serializable transactions; noted as a future advisory-lock improvement.
+3. **`storageUnitsPerItem` computed in application code, not SQL
+   aggregation.** Prisma's `groupBy`/`aggregate` can only sum a single
+   column, not a per-row product like `quantity * storageUnitsPerItem`, so
+   `PrismaWarehouseRepository.statsFor` and
+   `PrismaInventoryRepository.usedCapacityInWarehouse` load the relevant rows
+   and reduce in JS rather than reach for raw SQL. Accepted at this app's
+   scale (a warehouse's SKU count is realistically in the hundreds); a
+   `$queryRaw` `SUM(quantity * "storageUnitsPerItem")` would be the natural
+   next step if that ever stops being true. The BigQuery side has no such
+   constraint — `used_capacity` is precomputed in the `fact_inventory_current`
+   view.
+4. **Dual input mode for the storage ratio, converted at the API boundary.**
+   The UI/API accept either `storageUnitsPerItem` or its inverse
+   `itemsPerStorageUnit` (mutually exclusive on one request) because
+   operators naturally think in whichever direction fits the SKU — "1000
+   needles per storage unit" is more legible than "0.001 storage units per
+   needle." `resolveStorageUnitsPerItem()` in `lib/api/schemas.ts` performs
+   the conversion before the value reaches any service, so services and
+   repositories only ever see the canonical value and never need to know the
+   input mode existed.
+5. **Datastream CDC over dual-writes/batch ELT** — see
    [the runbook](infra/analytics/datastream-setup.md). Accepted cost:
    minutes-level dashboard staleness.
-4. **Swappable analytics port with a dev-only Postgres implementation.**
+6. **Swappable analytics port with a dev-only Postgres implementation.**
    Keeps the "dashboard reads only BigQuery" production rule (enforced in the
    container) without making local development depend on a GCP project.
-5. **Self-serve org creation on unknown sign-in.** Demonstrates tenant
+7. **Self-serve org creation on unknown sign-in.** Demonstrates tenant
    provisioning without an ops step; a real deployment might gate this behind
    invitations or WorkOS Organizations + SSO per tenant.
-6. **Server-driven pagination/sorting with AG Grid as the renderer** rather
+8. **Server-driven pagination/sorting with AG Grid as the renderer** rather
    than AG Grid's client-side model — the API stays the source of truth and
    the pattern scales past in-memory datasets.
-7. **Prisma 7 with the pg driver adapter** — no Rust query engine binary,
+9. **Prisma 7 with the pg driver adapter** — no Rust query engine binary,
    smaller Cloud Run images, first-class TS client.
 
 ## Future improvements

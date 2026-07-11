@@ -81,7 +81,13 @@ export class PrismaStockMovementRepository implements StockMovementRepository {
       // Conditional update is the authoritative stock guard: for outbound the
       // WHERE clause requires enough stock, so a concurrent competing
       // movement can never drive the quantity negative. The scope filter is
-      // part of the same WHERE — a foreign item is simply "not found".
+      // part of the same WHERE — a foreign item is simply "not found". The
+      // exact-match on warehouseId additionally guards the stock_movements
+      // row we're about to insert: if a caller ever passed a warehouseId
+      // that doesn't actually match this item's warehouse (data.warehouseId
+      // is always service-derived from the item today, so this is
+      // defense-in-depth, not a reachable path), the update matches zero
+      // rows and the movement is never recorded with mismatched columns.
       const guard = await tx.inventoryItem.updateMany({
         where: {
           AND: [
@@ -91,7 +97,7 @@ export class PrismaStockMovementRepository implements StockMovementRepository {
                 ? { warehouseId: { in: this.ctx.accessibleWarehouseIds } }
                 : {}),
             },
-            { id: data.inventoryItemId },
+            { id: data.inventoryItemId, warehouseId: data.warehouseId },
             ...(delta < 0 ? [{ quantity: { gte: data.quantity } }] : []),
           ],
         },

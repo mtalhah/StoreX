@@ -42,9 +42,9 @@ export class WarehouseService {
     const existing = await this.warehouses.findById(id);
     if (!existing) throw new NotFoundError('Warehouse', id);
 
-    if (data.capacity !== undefined && data.capacity < existing.totalQuantity) {
+    if (data.capacity !== undefined && data.capacity < existing.usedCapacity) {
       throw new BusinessRuleViolationError(
-        `Capacity cannot be reduced below the ${existing.totalQuantity} units currently on hand.`,
+        `Capacity cannot be reduced below the ${existing.usedCapacity} storage units currently in use.`,
       );
     }
 

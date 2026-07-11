@@ -61,14 +61,15 @@ export class StockMovementService {
     if (input.type === 'INBOUND') {
       const warehouse = await this.warehouses.findById(item.warehouseId);
       if (!warehouse) throw new NotFoundError('Warehouse', item.warehouseId);
-      const used = await this.inventory.totalQuantityInWarehouse(item.warehouseId);
-      const remaining = warehouse.capacity - used;
-      if (input.quantity > remaining) {
+      const usedCapacity = await this.inventory.usedCapacityInWarehouse(item.warehouseId);
+      const requiredCapacity = input.quantity * item.storageUnitsPerItem;
+      const remaining = warehouse.capacity - usedCapacity;
+      if (requiredCapacity > remaining) {
         // Capacity is a soft business constraint checked outside the write
         // transaction; a concurrent inbound can slightly overshoot. That
         // trade-off (documented in the README) avoids serializable
         // transactions on the hottest write path.
-        throw new CapacityExceededError(warehouse.name, input.quantity, Math.max(0, remaining));
+        throw new CapacityExceededError(warehouse.name, requiredCapacity, Math.max(0, remaining));
       }
     }
 

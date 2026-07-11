@@ -12,6 +12,7 @@ import { createServices } from '@/core/infrastructure/container';
 import { prisma } from '@/core/infrastructure/db/prisma';
 import { PrismaIdentityRepository } from '@/core/infrastructure/repositories/prisma-identity-repository';
 import {
+  CapacityExceededError,
   DomainError,
   ForbiddenError,
   InsufficientStockError,
@@ -124,6 +125,91 @@ async function main() {
   const afterOut = await prisma.inventoryItem.findUniqueOrThrow({ where: { id: northItem.id } });
   check('outbound movement decrements quantity atomically', afterOut.quantity === before);
 
+  console.log('\nCapacity is weighted by storageUnitsPerItem, not raw quantity');
+  const bulkyItem = await prisma.inventoryItem.findFirstOrThrow({
+    where: { organizationId: 'org_demo_acme', storageUnitsPerItem: { gte: 2 } },
+  });
+  const bulkyWarehouse = await admin.warehouses.get(bulkyItem.warehouseId);
+  check(
+    'usedCapacity differs from raw totalQuantity once a ratio is not 1',
+    bulkyWarehouse.usedCapacity !== bulkyWarehouse.totalQuantity,
+  );
+
+  // Cross-check the repository's usedCapacity against an independent
+  // recomputation straight from the raw rows.
+  const rowsInBulkyWarehouse = await prisma.inventoryItem.findMany({
+    where: { warehouseId: bulkyWarehouse.id },
+    select: { quantity: true, storageUnitsPerItem: true },
+  });
+  const expectedUsedCapacity = rowsInBulkyWarehouse.reduce(
+    (sum, r) => sum + r.quantity * Number(r.storageUnitsPerItem),
+    0,
+  );
+  check(
+    'usedCapacity matches an independent recomputation of quantity * storageUnitsPerItem',
+    Math.abs(bulkyWarehouse.usedCapacity - expectedUsedCapacity) < 0.01,
+  );
+
+  // A bulky item should be rejected once quantity * storageUnitsPerItem
+  // would exceed capacity — this is the bug the feature fixes: previously
+  // capacity was compared against raw quantity, so a bulky item could
+  // silently overfill a warehouse.
+  const bulkyRatio = Number(bulkyItem.storageUnitsPerItem);
+  const bulkyRemaining = bulkyWarehouse.capacity - bulkyWarehouse.usedCapacity;
+  const overCapacityQty = Math.floor(bulkyRemaining / bulkyRatio) + 10;
+  await expectError(
+    'a bulky item is rejected once its weighted quantity would exceed capacity',
+    CapacityExceededError,
+    () => admin.movements.record({ inventoryItemId: bulkyItem.id, type: 'INBOUND', quantity: overCapacityQty }),
+  );
+
+  // A tiny-ratio item should NOT be rejected for a quantity that would only
+  // trip a raw-quantity check — the other half of the same bug.
+  const tinyItem = await prisma.inventoryItem.findFirstOrThrow({
+    where: { organizationId: 'org_demo_acme', storageUnitsPerItem: { lte: 0.01 } },
+  });
+  const tinyWarehouse = await admin.warehouses.get(tinyItem.warehouseId);
+  const tinyRatio = Number(tinyItem.storageUnitsPerItem);
+  const tinyRemaining = tinyWarehouse.capacity - tinyWarehouse.usedCapacity;
+  const tinyQty = Math.min(5000, Math.floor((tinyRemaining / tinyRatio) * 0.5));
+  await admin.movements.record({ inventoryItemId: tinyItem.id, type: 'INBOUND', quantity: tinyQty, note: 'smoke-test' });
+  const tinyAfterIn = await prisma.inventoryItem.findUniqueOrThrow({ where: { id: tinyItem.id } });
+  check(
+    'a tiny-ratio item accepts a large quantity without hitting capacity',
+    tinyAfterIn.quantity === tinyItem.quantity + tinyQty,
+  );
+  await admin.movements.record({ inventoryItemId: tinyItem.id, type: 'OUTBOUND', quantity: tinyQty, note: 'smoke-test revert' });
+
+  console.log('\nTenant integrity on inventory creation');
+  // Fixed ids + upsert: a second tenant that persists across smoke runs
+  // instead of accumulating throwaway rows each time.
+  const foreignOrg = await prisma.organization.upsert({
+    where: { id: 'org_smoke_foreign' },
+    create: { id: 'org_smoke_foreign', name: 'Smoke Test Foreign Org' },
+    update: {},
+  });
+  const foreignWarehouse = await prisma.warehouse.upsert({
+    where: { id: 'wh_smoke_foreign' },
+    create: {
+      id: 'wh_smoke_foreign',
+      organizationId: foreignOrg.id,
+      name: 'Foreign WH',
+      location: 'Nowhere',
+      capacity: 100,
+    },
+    update: {},
+  });
+  await expectError(
+    "admin cannot create an inventory item against another organization's warehouse",
+    NotFoundError,
+    () =>
+      admin.inventory.create({
+        warehouseId: foreignWarehouse.id,
+        sku: 'SMOKE-X',
+        name: 'Should not be created',
+      }),
+  );
+
   console.log('\nAnalytics (dev source: postgres implementation of the port)');
   const managerKpis = await manager.analytics.kpis();
   const adminKpis = await admin.analytics.kpis();
@@ -136,6 +222,37 @@ async function main() {
   check('trend returns one point per day', trend.length === 30);
   const utilization = await manager.analytics.warehouseUtilization();
   check('utilization rows respect manager scope (2 warehouses)', utilization.length === 2);
+
+  // Regression check: totalStockUnits (and inbound/outbound30d) must be
+  // storage-unit-weighted, not raw sum(quantity) — otherwise a warehouse
+  // full of bulky pallets would under-report and one full of tiny
+  // consumables would over-report, exactly the bug this feature fixes.
+  const since30d = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+  const rawQtyOnHand = await prisma.inventoryItem
+    .aggregate({ where: { organizationId: 'org_demo_acme' }, _sum: { quantity: true } })
+    .then((r) => r._sum.quantity ?? 0);
+  const expectedWeightedOnHand = (
+    await prisma.inventoryItem.findMany({
+      where: { organizationId: 'org_demo_acme' },
+      select: { quantity: true, storageUnitsPerItem: true },
+    })
+  ).reduce((sum, i) => sum + i.quantity * Number(i.storageUnitsPerItem), 0);
+  check(
+    'admin totalStockUnits is storage-unit-weighted, not a raw quantity sum',
+    adminKpis.totalStockUnits !== rawQtyOnHand &&
+      Math.abs(adminKpis.totalStockUnits - expectedWeightedOnHand) < 0.01,
+  );
+
+  const expectedWeightedInbound30d = (
+    await prisma.stockMovement.findMany({
+      where: { organizationId: 'org_demo_acme', type: 'INBOUND', occurredAt: { gte: since30d } },
+      select: { quantity: true, inventoryItem: { select: { storageUnitsPerItem: true } } },
+    })
+  ).reduce((sum, m) => sum + m.quantity * Number(m.inventoryItem.storageUnitsPerItem), 0);
+  check(
+    'admin inbound30d matches an independent storage-unit-weighted recomputation',
+    Math.abs(adminKpis.inbound30d - expectedWeightedInbound30d) < 0.01,
+  );
 
   console.log(failures === 0 ? '\nAll smoke checks passed.' : `\n${failures} check(s) FAILED.`);
   if (failures > 0) process.exitCode = 1;

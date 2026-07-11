@@ -33,12 +33,14 @@ export function WarehousesView() {
       {
         field: 'capacity',
         headerName: 'Capacity',
+        headerTooltip: 'Total storage units available.',
         type: 'rightAligned',
         valueFormatter: (p) => formatNumber(p.value ?? 0),
       },
       {
-        field: 'totalQuantity',
-        headerName: 'On hand',
+        field: 'usedCapacity',
+        headerName: 'Used capacity',
+        headerTooltip: 'Storage units consumed: quantity × storage units per item, summed across SKUs.',
         type: 'rightAligned',
         sortable: false,
         valueFormatter: (p) => formatNumber(p.value ?? 0),
@@ -49,7 +51,7 @@ export function WarehousesView() {
         type: 'rightAligned',
         sortable: false,
         valueGetter: (p) =>
-          p.data && p.data.capacity > 0 ? (p.data.totalQuantity / p.data.capacity) * 100 : 0,
+          p.data && p.data.capacity > 0 ? (p.data.usedCapacity / p.data.capacity) * 100 : 0,
         valueFormatter: (p) => formatPercent(p.value ?? 0),
       },
       { field: 'skuCount', headerName: 'SKUs', type: 'rightAligned', sortable: false, maxWidth: 100 },
@@ -97,7 +99,7 @@ export function WarehousesView() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 p-6">
-      <PageHeader title="Warehouses" description="Locations, capacity, and current load.">
+      <PageHeader title="Warehouses" description="Locations, storage capacity, and current utilization.">
         <Input
           placeholder="Search warehouses…"
           className="w-56 bg-card"

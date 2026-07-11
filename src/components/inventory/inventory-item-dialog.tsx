@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,8 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiFetch, ApiError } from '@/lib/client/api';
 import type { InventoryRow } from '@/lib/client/types';
+import { formatDecimal } from '@/lib/format';
+
+type RatioMode = 'storageUnitsPerItem' | 'itemsPerStorageUnit';
 
 export function InventoryItemDialog({
   open,
@@ -69,22 +73,44 @@ function InventoryItemForm({
   const [warehouseId, setWarehouseId] = useState(item?.warehouseId ?? '');
   const [sku, setSku] = useState(item?.sku ?? '');
   const [name, setName] = useState(item?.name ?? '');
+  const [mode, setMode] = useState<RatioMode>('storageUnitsPerItem');
+  const [ratioValue, setRatioValue] = useState(item ? String(item.storageUnitsPerItem) : '');
   const [busy, setBusy] = useState(false);
+
+  // Switching modes converts the displayed number to its equivalent in the
+  // new unit, so the ratio the user actually means stays constant across
+  // the toggle instead of silently changing.
+  const handleModeChange = (next: string) => {
+    const nextMode = next as RatioMode;
+    if (nextMode === mode) return;
+    const n = Number(ratioValue);
+    if (Number.isFinite(n) && n > 0) setRatioValue(String(1 / n));
+    setMode(nextMode);
+  };
+
+  const derived = useMemo(() => {
+    const n = Number(ratioValue);
+    if (!ratioValue.trim() || !Number.isFinite(n) || n <= 0) return null;
+    const inverse = 1 / n;
+    const label = mode === 'storageUnitsPerItem' ? 'items per storage unit' : 'storage units per item';
+    return `≈ ${formatDecimal(inverse)} ${label}`;
+  }, [mode, ratioValue]);
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
     setBusy(true);
     try {
+      const ratio = ratioValue.trim() ? { [mode]: Number(ratioValue) } : {};
       if (isEdit) {
         await apiFetch(`/api/v1/inventory/${item.id}`, {
           method: 'PATCH',
-          body: JSON.stringify({ sku, name }),
+          body: JSON.stringify({ sku, name, ...ratio }),
         });
         toast.success('Item updated.');
       } else {
         await apiFetch('/api/v1/inventory', {
           method: 'POST',
-          body: JSON.stringify({ warehouseId, sku, name }),
+          body: JSON.stringify({ warehouseId, sku, name, ...ratio }),
         });
         toast.success('Item created. Record an inbound movement to add stock.');
       }
@@ -103,7 +129,7 @@ function InventoryItemForm({
         <DialogTitle>{isEdit ? 'Edit item' : 'New inventory item'}</DialogTitle>
         <DialogDescription>
           {isEdit
-            ? 'Update the SKU or display name. Quantities change only through stock movements.'
+            ? 'Update the SKU, display name, or storage ratio. Quantities change only through stock movements.'
             : 'Items start at zero stock; record an inbound movement to receive units.'}
         </DialogDescription>
       </DialogHeader>
@@ -141,6 +167,30 @@ function InventoryItemForm({
         <div className="space-y-2">
           <Label htmlFor="item-name">Name</Label>
           <Input id="item-name" value={name} onChange={(e) => setName(e.target.value)} required maxLength={200} />
+        </div>
+        <div className="space-y-2">
+          <Label>Storage ratio</Label>
+          <Tabs value={mode} onValueChange={handleModeChange}>
+            <TabsList className="w-full">
+              <TabsTrigger value="storageUnitsPerItem" className="flex-1">
+                Storage units per item
+              </TabsTrigger>
+              <TabsTrigger value="itemsPerStorageUnit" className="flex-1">
+                Items per storage unit
+              </TabsTrigger>
+            </TabsList>
+          </Tabs>
+          <Input
+            type="number"
+            min={0}
+            step="any"
+            value={ratioValue}
+            onChange={(e) => setRatioValue(e.target.value)}
+            placeholder="Default: 1 storage unit per item"
+          />
+          <p className="min-h-4 text-xs text-muted-foreground">
+            {derived ?? 'Determines how much of a warehouse’s capacity each unit of this SKU consumes.'}
+          </p>
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>

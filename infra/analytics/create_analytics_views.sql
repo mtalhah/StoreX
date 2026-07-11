@@ -37,15 +37,20 @@ FROM `{{PROJECT_ID}}.{{RAW_DATASET}}.public_warehouses`;
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE VIEW `{{PROJECT_ID}}.{{ANALYTICS_DATASET}}.fact_inventory_current` AS
 SELECT
-  i.id             AS inventory_item_id,
-  i.organizationId AS organization_id,
-  i.warehouseId    AS warehouse_id,
-  w.name           AS warehouse_name,
-  w.capacity       AS warehouse_capacity,
+  i.id                    AS inventory_item_id,
+  i.organizationId        AS organization_id,
+  i.warehouseId           AS warehouse_id,
+  w.name                  AS warehouse_name,
+  w.capacity              AS warehouse_capacity,
   i.sku,
-  i.name           AS item_name,
+  i.name                  AS item_name,
   i.quantity,
-  i.updatedAt      AS updated_at
+  i.storageUnitsPerItem   AS storage_units_per_item,
+  -- Storage-unit-weighted usage — this, not raw quantity, is what's
+  -- compared against warehouse_capacity. See Warehouse.capacity in
+  -- prisma/schema.prisma for the same rule applied on the OLTP side.
+  i.quantity * i.storageUnitsPerItem AS used_capacity,
+  i.updatedAt              AS updated_at
 FROM `{{PROJECT_ID}}.{{RAW_DATASET}}.public_inventory_items` i
 JOIN `{{PROJECT_ID}}.{{RAW_DATASET}}.public_warehouses` w
   ON w.id = i.warehouseId;
@@ -55,18 +60,24 @@ JOIN `{{PROJECT_ID}}.{{RAW_DATASET}}.public_warehouses` w
 -- ---------------------------------------------------------------------------
 CREATE OR REPLACE VIEW `{{PROJECT_ID}}.{{ANALYTICS_DATASET}}.fact_stock_movement` AS
 SELECT
-  m.id              AS movement_id,
-  m.organizationId  AS organization_id,
-  m.warehouseId     AS warehouse_id,
-  w.name            AS warehouse_name,
-  m.inventoryItemId AS inventory_item_id,
+  m.id                   AS movement_id,
+  m.organizationId       AS organization_id,
+  m.warehouseId          AS warehouse_id,
+  w.name                 AS warehouse_name,
+  m.inventoryItemId      AS inventory_item_id,
   i.sku,
-  i.name            AS item_name,
+  i.name                 AS item_name,
   m.type,
   m.quantity,
+  i.storageUnitsPerItem  AS storage_units_per_item,
+  -- Storage-unit-weighted movement volume, using the item's *current*
+  -- ratio (movements don't snapshot it historically). Consistent with
+  -- fact_inventory_current.used_capacity — KPIs like inbound30d/outbound30d
+  -- sum this, not raw quantity, for the same reason totalStockUnits does.
+  m.quantity * i.storageUnitsPerItem AS used_capacity_delta,
   m.note,
-  m.createdById     AS created_by_id,
-  m.occurredAt      AS occurred_at
+  m.createdById          AS created_by_id,
+  m.occurredAt           AS occurred_at
 FROM `{{PROJECT_ID}}.{{RAW_DATASET}}.public_stock_movements` m
 JOIN `{{PROJECT_ID}}.{{RAW_DATASET}}.public_warehouses` w
   ON w.id = m.warehouseId
@@ -81,9 +92,11 @@ SELECT
   organization_id,
   warehouse_id,
   warehouse_name,
-  DATE(occurred_at)                          AS day,
-  SUM(IF(type = 'INBOUND',  quantity, 0))    AS inbound_units,
-  SUM(IF(type = 'OUTBOUND', quantity, 0))    AS outbound_units,
-  COUNT(*)                                   AS movement_count
+  DATE(occurred_at)                                    AS day,
+  -- Storage-unit-weighted, matching getKpis()/getMovementTrend() — not a
+  -- raw quantity sum.
+  SUM(IF(type = 'INBOUND',  used_capacity_delta, 0))    AS inbound_units,
+  SUM(IF(type = 'OUTBOUND', used_capacity_delta, 0))    AS outbound_units,
+  COUNT(*)                                              AS movement_count
 FROM `{{PROJECT_ID}}.{{ANALYTICS_DATASET}}.fact_stock_movement`
 GROUP BY 1, 2, 3, 4;

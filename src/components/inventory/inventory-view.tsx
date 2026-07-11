@@ -23,7 +23,7 @@ import type { InventoryRow } from '@/lib/client/types';
 import { useMe } from '@/lib/client/use-me';
 import { usePaginated } from '@/lib/client/use-paginated';
 import { useWarehouseOptions } from '@/lib/client/use-warehouse-options';
-import { formatDateTime, formatNumber } from '@/lib/format';
+import { formatDateTime, formatDecimal, formatNumber } from '@/lib/format';
 import { InventoryItemDialog } from './inventory-item-dialog';
 
 const ALL = 'all';
@@ -52,6 +52,14 @@ export function InventoryView() {
         valueFormatter: (p) => formatNumber(p.value ?? 0),
         cellClass: (p) => ((p.value ?? 0) === 0 ? 'text-muted-foreground' : ''),
         maxWidth: 130,
+      },
+      {
+        field: 'storageUnitsPerItem',
+        headerName: 'Storage units / item',
+        headerTooltip: 'Canonical ratio used to compute how much warehouse capacity this SKU consumes.',
+        type: 'rightAligned',
+        valueFormatter: (p) => formatDecimal(p.value ?? 1),
+        maxWidth: 150,
       },
       {
         field: 'updatedAt',

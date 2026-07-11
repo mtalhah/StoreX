@@ -38,6 +38,8 @@ export interface InventoryItem {
   sku: string;
   name: string;
   quantity: number;
+  /** Canonical storage-unit consumption per item (see Warehouse.capacity). */
+  storageUnitsPerItem: number;
   createdAt: Date;
   updatedAt: Date;
 }

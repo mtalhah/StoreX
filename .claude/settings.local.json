@@ -22,7 +22,10 @@
       "PowerShell(Remove-Item \"Z:\\\\Work\\\\T3C\\\\StoreX\\\\src\\\\app\\\\sign-in\\\\page.tsx\" -Confirm:$false)",
       "PowerShell(Select-String -Path \"Z:\\\\Work\\\\T3C\\\\StoreX\\\\node_modules\\\\@workos-inc\\\\authkit-nextjs\\\\dist\\\\esm\\\\session.js\" -Pattern \"unauthenticatedPaths|match|redirectTo\" | Select-Object -First 15 | ForEach-Object { $_.LineNumber.ToString\\(\\) + ': ' + $_.Line.Trim\\(\\).Substring\\(0, [Math]::Min\\(160, $_.Line.Trim\\(\\).Length\\)\\) })",
       "PowerShell(Get-Content Z:\\\\Work\\\\T3C\\\\StoreX\\\\node_modules\\\\@workos-inc\\\\authkit-nextjs\\\\dist\\\\esm\\\\session.js | Select-Object -Skip 82 -First 20; Select-String -Path \"Z:\\\\Work\\\\T3C\\\\StoreX\\\\node_modules\\\\@workos-inc\\\\authkit-nextjs\\\\dist\\\\esm\\\\utils.js\" -Pattern \"function getMiddlewareAuthPathRegex\" -Context 0,20 | ForEach-Object { $_.Context.PostContext })",
-      "PowerShell(Select-String -Path \"Z:\\\\Work\\\\T3C\\\\StoreX\\\\node_modules\\\\@workos-inc\\\\authkit-nextjs\\\\dist\\\\esm\\\\utils.js\" -Pattern \"getMiddlewareAuthPathRegex\" -Context 0,30 | Select-Object -First 1 | ForEach-Object { $_.Line; $_.Context.PostContext })"
+      "PowerShell(Select-String -Path \"Z:\\\\Work\\\\T3C\\\\StoreX\\\\node_modules\\\\@workos-inc\\\\authkit-nextjs\\\\dist\\\\esm\\\\utils.js\" -Pattern \"getMiddlewareAuthPathRegex\" -Context 0,30 | Select-Object -First 1 | ForEach-Object { $_.Line; $_.Context.PostContext })",
+      "PowerShell(npx prisma migrate deploy)",
+      "PowerShell(npx prisma db seed 2>&1)",
+      "PowerShell(npx tsx scripts/_schema-check.ts)"
     ]
   }
 }

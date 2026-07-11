@@ -14,6 +14,18 @@ import type { InventoryItem } from '@/core/domain/entities';
 import { ConflictError } from '@/core/domain/errors';
 import { isUniqueConstraintViolation } from './prisma-errors';
 
+type InventoryItemRow = Prisma.InventoryItemGetPayload<Record<string, never>>;
+
+/**
+ * Domain entities carry storageUnitsPerItem as a plain `number` (see the
+ * Decimal-vs-Float trade-off note on the Prisma field) — Prisma returns it
+ * as a Decimal instance, so every row crossing this boundary is converted
+ * here rather than leaking decimal.js into the application layer.
+ */
+function toDomain(row: InventoryItemRow): InventoryItem {
+  return { ...row, storageUnitsPerItem: row.storageUnitsPerItem.toNumber() };
+}
+
 export class PrismaInventoryRepository implements InventoryRepository {
   constructor(
     private readonly db: PrismaClient,
@@ -59,7 +71,7 @@ export class PrismaInventoryRepository implements InventoryRepository {
     ]);
 
     return paginate(
-      rows.map(({ warehouse, ...item }) => ({ ...item, warehouseName: warehouse.name })),
+      rows.map(({ warehouse, ...item }) => ({ ...toDomain(item), warehouseName: warehouse.name })),
       totalItems,
       query,
     );
@@ -72,18 +84,19 @@ export class PrismaInventoryRepository implements InventoryRepository {
     });
     if (!row) return null;
     const { warehouse, ...item } = row;
-    return { ...item, warehouseName: warehouse.name };
+    return { ...toDomain(item), warehouseName: warehouse.name };
   }
 
   async create(data: CreateInventoryItemData): Promise<InventoryItem> {
     try {
-      return await this.db.inventoryItem.create({
+      const row = await this.db.inventoryItem.create({
         data: {
           ...data,
           quantity: 0,
           organizationId: this.ctx.organizationId,
         },
       });
+      return toDomain(row);
     } catch (e) {
       if (isUniqueConstraintViolation(e)) {
         throw new ConflictError(`SKU '${data.sku}' already exists in this warehouse.`);
@@ -99,7 +112,8 @@ export class PrismaInventoryRepository implements InventoryRepository {
         data,
       });
       if (result.count === 0) return null;
-      return await this.db.inventoryItem.findUnique({ where: { id } });
+      const row = await this.db.inventoryItem.findUnique({ where: { id } });
+      return row ? toDomain(row) : null;
     } catch (e) {
       if (isUniqueConstraintViolation(e)) {
         throw new ConflictError(`SKU '${data.sku}' already exists in this warehouse.`);
@@ -115,11 +129,16 @@ export class PrismaInventoryRepository implements InventoryRepository {
     return result.count > 0;
   }
 
-  async totalQuantityInWarehouse(warehouseId: string): Promise<number> {
-    const agg = await this.db.inventoryItem.aggregate({
+  /**
+   * quantity * storageUnitsPerItem can't be aggregated server-side without
+   * raw SQL (see PrismaWarehouseRepository.statsFor for the same trade-off),
+   * so rows are loaded and reduced in JS.
+   */
+  async usedCapacityInWarehouse(warehouseId: string): Promise<number> {
+    const items = await this.db.inventoryItem.findMany({
       where: { organizationId: this.ctx.organizationId, warehouseId },
-      _sum: { quantity: true },
+      select: { quantity: true, storageUnitsPerItem: true },
     });
-    return agg._sum.quantity ?? 0;
+    return items.reduce((sum, i) => sum + i.quantity * i.storageUnitsPerItem.toNumber(), 0);
   }
 }

@@ -10,6 +10,8 @@ export interface WarehouseRow {
   location: string;
   capacity: number;
   totalQuantity: number;
+  /** Storage units consumed: sum(quantity * storageUnitsPerItem). Compared against `capacity`. */
+  usedCapacity: number;
   skuCount: number;
   createdAt: string;
   updatedAt: string;
@@ -22,6 +24,8 @@ export interface InventoryRow {
   sku: string;
   name: string;
   quantity: number;
+  /** Canonical storage-unit-per-item ratio (see Warehouse.capacity). */
+  storageUnitsPerItem: number;
   createdAt: string;
   updatedAt: string;
 }

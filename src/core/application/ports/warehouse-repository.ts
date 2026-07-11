@@ -2,8 +2,13 @@ import type { Warehouse } from '@/core/domain/entities';
 import type { Paginated, PageParams, SortDir } from '../dto/common';
 
 export interface WarehouseWithStats extends Warehouse {
-  /** Total units currently on hand across all SKUs. */
+  /** Total item units currently on hand across all SKUs (raw count, not capacity-weighted). */
   totalQuantity: number;
+  /**
+   * Storage units currently consumed: sum(quantity * storageUnitsPerItem).
+   * This — not totalQuantity — is what's compared against `capacity`.
+   */
+  usedCapacity: number;
   skuCount: number;
 }
 

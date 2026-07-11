@@ -53,7 +53,7 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
     }>(
       `
       WITH inv AS (
-        SELECT quantity
+        SELECT quantity, used_capacity
         FROM ${ds}.fact_inventory_current
         WHERE organization_id = @orgId
           AND (@scopeAll OR warehouse_id IN UNNEST(@warehouseIds))
@@ -65,20 +65,25 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
           AND (@scopeAll OR warehouse_id IN UNNEST(@warehouseIds))
       ),
       mv AS (
-        SELECT type, quantity
+        SELECT type, used_capacity_delta
         FROM ${ds}.fact_stock_movement
         WHERE organization_id = @orgId
           AND (@scopeAll OR warehouse_id IN UNNEST(@warehouseIds))
           AND occurred_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
       )
       SELECT
-        (SELECT COALESCE(SUM(quantity), 0) FROM inv) AS totalStockUnits,
+        -- Storage units on hand / moved, not raw quantity — same rationale
+        -- as utilizationPct below. movementVelocity30d is the one exception:
+        -- it counts movement events (cadence), not a quantity.
+        (SELECT COALESCE(SUM(used_capacity), 0) FROM inv) AS totalStockUnits,
         (SELECT COUNT(*) FROM inv) AS activeSkus,
-        (SELECT COALESCE(SUM(IF(type = 'INBOUND', quantity, 0)), 0) FROM mv) AS inbound30d,
-        (SELECT COALESCE(SUM(IF(type = 'OUTBOUND', quantity, 0)), 0) FROM mv) AS outbound30d,
+        (SELECT COALESCE(SUM(IF(type = 'INBOUND', used_capacity_delta, 0)), 0) FROM mv) AS inbound30d,
+        (SELECT COALESCE(SUM(IF(type = 'OUTBOUND', used_capacity_delta, 0)), 0) FROM mv) AS outbound30d,
         (SELECT ROUND(COUNT(*) / 30, 1) FROM mv) AS movementVelocity30d,
+        -- Storage-unit-weighted usage vs. total capacity, not a raw
+        -- quantity-to-capacity ratio.
         SAFE_DIVIDE(
-          (SELECT SUM(quantity) FROM inv),
+          (SELECT SUM(used_capacity) FROM inv),
           (SELECT SUM(capacity) FROM wh)
         ) * 100 AS utilizationPct,
         (SELECT COUNT(*) FROM inv WHERE quantity <= @lowStockQty) AS lowStockCount
@@ -107,8 +112,11 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
       `
       SELECT
         day AS date,
-        COALESCE(SUM(IF(m.type = 'INBOUND', m.quantity, 0)), 0) AS inbound,
-        COALESCE(SUM(IF(m.type = 'OUTBOUND', m.quantity, 0)), 0) AS outbound
+        -- Storage-unit-weighted, same as inbound30d/outbound30d in
+        -- getKpis() — this chart is the day-by-day breakdown of the same
+        -- measure, not a raw quantity count.
+        COALESCE(SUM(IF(m.type = 'INBOUND', m.used_capacity_delta, 0)), 0) AS inbound,
+        COALESCE(SUM(IF(m.type = 'OUTBOUND', m.used_capacity_delta, 0)), 0) AS outbound
       FROM UNNEST(GENERATE_DATE_ARRAY(@startDate, CURRENT_DATE())) AS day
       LEFT JOIN ${ds}.fact_stock_movement m
         ON DATE(m.occurred_at) = day
@@ -133,7 +141,7 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
       warehouseId: string;
       warehouseName: string;
       capacity: number;
-      totalQuantity: number;
+      usedCapacity: number;
       skuCount: number;
     }>(
       `
@@ -141,7 +149,7 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
         w.warehouse_id AS warehouseId,
         w.name AS warehouseName,
         w.capacity AS capacity,
-        COALESCE(SUM(i.quantity), 0) AS totalQuantity,
+        COALESCE(SUM(i.used_capacity), 0) AS usedCapacity,
         COUNT(i.sku) AS skuCount
       FROM ${ds}.dim_warehouse w
       LEFT JOIN ${ds}.fact_inventory_current i
@@ -157,10 +165,10 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
       warehouseId: r.warehouseId,
       warehouseName: r.warehouseName,
       capacity: Number(r.capacity),
-      totalQuantity: Number(r.totalQuantity),
+      usedCapacity: Number(r.usedCapacity),
       skuCount: Number(r.skuCount),
       utilizationPct:
-        Number(r.capacity) > 0 ? (Number(r.totalQuantity) / Number(r.capacity)) * 100 : 0,
+        Number(r.capacity) > 0 ? (Number(r.usedCapacity) / Number(r.capacity)) * 100 : 0,
     }));
   }
 

@@ -50,7 +50,7 @@ export function UtilizationPanel() {
                 />
               </div>
               <p className="text-[11px] text-muted-foreground">
-                {formatNumber(row.totalQuantity)} / {formatNumber(row.capacity)} units ·{' '}
+                {formatNumber(row.usedCapacity)} / {formatNumber(row.capacity)} storage units ·{' '}
                 {formatNumber(row.skuCount)} SKUs
               </p>
             </div>

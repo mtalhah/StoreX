@@ -61,6 +61,7 @@ export class PrismaWarehouseRepository implements WarehouseRepository {
     const items = rows.map((row) => ({
       ...row,
       totalQuantity: stats.get(row.id)?.totalQuantity ?? 0,
+      usedCapacity: stats.get(row.id)?.usedCapacity ?? 0,
       skuCount: stats.get(row.id)?.skuCount ?? 0,
     }));
 
@@ -74,6 +75,7 @@ export class PrismaWarehouseRepository implements WarehouseRepository {
     return {
       ...row,
       totalQuantity: stats.get(row.id)?.totalQuantity ?? 0,
+      usedCapacity: stats.get(row.id)?.usedCapacity ?? 0,
       skuCount: stats.get(row.id)?.skuCount ?? 0,
     };
   }
@@ -102,21 +104,30 @@ export class PrismaWarehouseRepository implements WarehouseRepository {
     return result.count > 0;
   }
 
+  /**
+   * usedCapacity is a per-row product (quantity * storageUnitsPerItem) that
+   * Prisma's groupBy cannot aggregate server-side without raw SQL, so rows
+   * are loaded and reduced in JS. Fine at this app's scale (a warehouse's
+   * SKU count is realistically in the hundreds, not millions); totalQuantity
+   * still comes along for free from the same rows.
+   */
   private async statsFor(
     warehouseIds: string[],
-  ): Promise<Map<string, { totalQuantity: number; skuCount: number }>> {
+  ): Promise<Map<string, { totalQuantity: number; usedCapacity: number; skuCount: number }>> {
     if (warehouseIds.length === 0) return new Map();
-    const grouped = await this.db.inventoryItem.groupBy({
-      by: ['warehouseId'],
+    const items = await this.db.inventoryItem.findMany({
       where: { warehouseId: { in: warehouseIds }, organizationId: this.ctx.organizationId },
-      _sum: { quantity: true },
-      _count: { _all: true },
+      select: { warehouseId: true, quantity: true, storageUnitsPerItem: true },
     });
-    return new Map(
-      grouped.map((g) => [
-        g.warehouseId,
-        { totalQuantity: g._sum.quantity ?? 0, skuCount: g._count._all },
-      ]),
-    );
+
+    const stats = new Map<string, { totalQuantity: number; usedCapacity: number; skuCount: number }>();
+    for (const item of items) {
+      const current = stats.get(item.warehouseId) ?? { totalQuantity: 0, usedCapacity: 0, skuCount: 0 };
+      current.totalQuantity += item.quantity;
+      current.usedCapacity += item.quantity * item.storageUnitsPerItem.toNumber();
+      current.skuCount += 1;
+      stats.set(item.warehouseId, current);
+    }
+    return stats;
   }
 }

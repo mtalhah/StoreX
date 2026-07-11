@@ -89,7 +89,7 @@ function WarehouseForm({
         <DialogTitle>{isEdit ? 'Edit warehouse' : 'New warehouse'}</DialogTitle>
         <DialogDescription>
           {isEdit
-            ? 'Update the warehouse details. Capacity cannot drop below current stock.'
+            ? 'Update the warehouse details. Capacity cannot drop below storage units currently in use.'
             : 'Add a warehouse to your organization.'}
         </DialogDescription>
       </DialogHeader>
@@ -110,7 +110,7 @@ function WarehouseForm({
           />
         </div>
         <div className="space-y-2">
-          <Label htmlFor="wh-capacity">Capacity (units)</Label>
+          <Label htmlFor="wh-capacity">Capacity (storage units)</Label>
           <Input
             id="wh-capacity"
             type="number"
@@ -119,6 +119,10 @@ function WarehouseForm({
             onChange={(e) => setCapacity(e.target.value)}
             required
           />
+          <p className="text-xs text-muted-foreground">
+            Total storage units available. Each inventory item consumes some number of storage
+            units per unit on hand — set that ratio when creating or editing the item.
+          </p>
         </div>
         <DialogFooter>
           <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>

@@ -78,7 +78,10 @@ model Warehouse {
   organizationId String
   name           String
   location       String
-  /// Maximum number of stock units the warehouse can hold.
+  /// Maximum number of storage units available in the warehouse. This is a
+  /// space measure, not a raw item count: usage is computed as
+  /// sum(inventoryItem.quantity * inventoryItem.storageUnitsPerItem), so a
+  /// warehouse fills based on how much physical space its stock occupies.
   capacity       Int
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
@@ -117,6 +120,13 @@ model InventoryItem {
   /// Materialized aggregate of stock movements; written only by
   /// StockMovementService inside the movement transaction. CHECK (quantity >= 0).
   quantity       Int      @default(0)
+  /// Canonical storage-unit consumption per item, used to weight this SKU's
+  /// contribution to its warehouse's used capacity (quantity * this value).
+  /// Decimal (not Float) to avoid binary floating-point drift when many
+  /// fractional ratios are summed. The API also accepts the inverse —
+  /// itemsPerStorageUnit — and converts it to this canonical value before
+  /// persisting. Defaults to 1 (one storage unit per item). CHECK (> 0).
+  storageUnitsPerItem Decimal @db.Decimal(12, 6) @default(1)
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

@@ -18,11 +18,14 @@ export interface CreateInventoryItemData {
   warehouseId: string;
   sku: string;
   name: string;
+  /** Canonical value; omit to accept the schema default (1). */
+  storageUnitsPerItem?: number;
 }
 
 export interface UpdateInventoryItemData {
   sku?: string;
   name?: string;
+  storageUnitsPerItem?: number;
 }
 
 /** Tenant- and warehouse-scoped; see WarehouseRepository contract note. */
@@ -33,6 +36,6 @@ export interface InventoryRepository {
   create(data: CreateInventoryItemData): Promise<InventoryItem>;
   update(id: string, data: UpdateInventoryItemData): Promise<InventoryItem | null>;
   delete(id: string): Promise<boolean>;
-  /** Current total units stored in a warehouse (for capacity checks). */
-  totalQuantityInWarehouse(warehouseId: string): Promise<number>;
+  /** Storage units currently consumed in a warehouse: sum(quantity * storageUnitsPerItem). */
+  usedCapacityInWarehouse(warehouseId: string): Promise<number>;
 }

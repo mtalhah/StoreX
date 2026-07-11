@@ -45,20 +45,62 @@ export const inventoryListSchema = paginationSchema.extend({
   warehouseId: z.string().min(1).optional(),
 });
 
-export const inventoryCreateSchema = z.object({
-  warehouseId: z.string().min(1),
-  sku: z
-    .string()
-    .trim()
-    .min(1)
-    .max(64)
-    .regex(/^[A-Za-z0-9._-]+$/, 'SKU may contain letters, digits, dots, underscores, and dashes.'),
-  name: z.string().trim().min(1).max(200),
-});
+const skuField = z
+  .string()
+  .trim()
+  .min(1)
+  .max(64)
+  .regex(/^[A-Za-z0-9._-]+$/, 'SKU may contain letters, digits, dots, underscores, and dashes.');
+const nameField = z.string().trim().min(1).max(200);
 
-export const inventoryUpdateSchema = inventoryCreateSchema
-  .omit({ warehouseId: true })
-  .partial()
+/**
+ * Dual input mode for the storage-capacity ratio (see
+ * StockMovementService's capacity math): the UI/API accept either the
+ * canonical `storageUnitsPerItem` or its inverse, `itemsPerStorageUnit`, but
+ * never both at once. `resolveStorageUnitsPerItem` below converts whichever
+ * was given into the canonical value before it reaches services/repositories.
+ */
+const storageRatioFields = {
+  storageUnitsPerItem: z.number().positive().max(1_000_000).optional(),
+  itemsPerStorageUnit: z.number().positive().max(1_000_000).optional(),
+};
+const exclusiveStorageRatio = {
+  error: 'Provide either storageUnitsPerItem or itemsPerStorageUnit, not both.',
+  path: ['storageUnitsPerItem'],
+};
+function hasExclusiveStorageRatio(v: {
+  storageUnitsPerItem?: number;
+  itemsPerStorageUnit?: number;
+}): boolean {
+  return !(v.storageUnitsPerItem !== undefined && v.itemsPerStorageUnit !== undefined);
+}
+
+/** Converts whichever input mode was provided into the canonical stored value. */
+export function resolveStorageUnitsPerItem(input: {
+  storageUnitsPerItem?: number;
+  itemsPerStorageUnit?: number;
+}): number | undefined {
+  if (input.storageUnitsPerItem !== undefined) return input.storageUnitsPerItem;
+  if (input.itemsPerStorageUnit !== undefined) return 1 / input.itemsPerStorageUnit;
+  return undefined;
+}
+
+export const inventoryCreateSchema = z
+  .object({
+    warehouseId: z.string().min(1),
+    sku: skuField,
+    name: nameField,
+    ...storageRatioFields,
+  })
+  .refine(hasExclusiveStorageRatio, exclusiveStorageRatio);
+
+export const inventoryUpdateSchema = z
+  .object({
+    sku: skuField.optional(),
+    name: nameField.optional(),
+    ...storageRatioFields,
+  })
+  .refine(hasExclusiveStorageRatio, exclusiveStorageRatio)
   .refine((v) => Object.keys(v).length > 0, requireSomeField);
 
 // ---------- stock movements ----------

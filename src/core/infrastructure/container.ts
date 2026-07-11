@@ -37,7 +37,7 @@ export function createServices(ctx: TenantContext): Services {
 
   return {
     warehouses: new WarehouseService(ctx, warehouseRepo),
-    inventory: new InventoryService(ctx, inventoryRepo),
+    inventory: new InventoryService(ctx, inventoryRepo, warehouseRepo),
     movements: new StockMovementService(ctx, movementRepo, inventoryRepo, warehouseRepo),
     users: new UserService(ctx, userRepo),
     analytics: new AnalyticsService(ctx, createAnalyticsRepository(ctx)),
