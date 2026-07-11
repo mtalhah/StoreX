@@ -52,6 +52,8 @@ export class PrismaIdentityRepository implements IdentityRepository {
       where: { id: userId },
       data: {
         workosUserId,
+        // This is the moment an invited user accepts and signs in.
+        invitationStatus: 'ACCEPTED',
         // Fill profile fields from the identity provider only when the
         // admin left them blank at provisioning time.
         ...(profile.firstName ? { firstName: { set: profile.firstName } } : {}),

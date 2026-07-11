@@ -1,5 +1,5 @@
 import type { User } from '@/core/domain/entities';
-import type { UserRole } from '@/core/domain/enums';
+import type { InvitationStatus, UserRole } from '@/core/domain/enums';
 import type { Paginated, PageParams, SortDir } from '../dto/common';
 
 export interface UserWithAssignments extends User {
@@ -15,12 +15,23 @@ export interface UserListQuery extends PageParams {
   role?: UserRole;
 }
 
-export interface CreateUserData {
+/** What the route/API supplies when an admin provisions a user. */
+export interface CreateUserInput {
   email: string;
   firstName?: string;
   lastName?: string;
   role: UserRole;
   warehouseIds: string[];
+}
+
+/**
+ * Persistence-complete shape: CreateUserInput plus the WorkOS invitation
+ * outcome UserService computed by calling AuthDirectory before persisting.
+ */
+export interface CreateUserData extends CreateUserInput {
+  workosInvitationId: string | null;
+  invitationStatus: InvitationStatus;
+  invitedAt: Date | null;
 }
 
 export interface UpdateUserData {
@@ -29,6 +40,12 @@ export interface UpdateUserData {
   role?: UserRole;
   warehouseIds?: string[];
   isActive?: boolean;
+}
+
+export interface OrganizationSummary {
+  id: string;
+  name: string;
+  workosOrgId: string | null;
 }
 
 /** Tenant-scoped (organization-wide; user management is Admin-only). */
@@ -40,4 +57,6 @@ export interface UserRepository {
   delete(id: string): Promise<boolean>;
   /** Warehouse ids (within the tenant) that actually exist, for validation. */
   existingWarehouseIds(ids: string[]): Promise<string[]>;
+  /** The tenant's org summary (name + WorkOS link), for sending invitations. */
+  getOrganization(): Promise<OrganizationSummary>;
 }

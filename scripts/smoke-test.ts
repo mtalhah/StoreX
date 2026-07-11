@@ -7,17 +7,55 @@
  *   npm run smoke
  */
 import 'dotenv/config';
+import type {
+  AuthDirectory,
+  SendInvitationInput,
+  SentInvitation,
+} from '@/core/application/ports/auth-directory';
 import { UserSyncService } from '@/core/application/services/user-sync-service';
 import { createServices } from '@/core/infrastructure/container';
 import { prisma } from '@/core/infrastructure/db/prisma';
 import { PrismaIdentityRepository } from '@/core/infrastructure/repositories/prisma-identity-repository';
 import {
+  BusinessRuleViolationError,
   CapacityExceededError,
   DomainError,
   ForbiddenError,
   InsufficientStockError,
   NotFoundError,
 } from '@/core/domain/errors';
+
+/** Records every invitation it "sends" and returns a deterministic result — simulates a healthy WorkOS. */
+class FakeAuthDirectory implements AuthDirectory {
+  sentInvitations: SendInvitationInput[] = [];
+  async createOrganization(name: string): Promise<string | null> {
+    return `org_fake_${name}`;
+  }
+  async addOrganizationMembership(): Promise<boolean> {
+    return true;
+  }
+  async sendInvitation(input: SendInvitationInput): Promise<SentInvitation> {
+    this.sentInvitations.push(input);
+    return {
+      id: `invitation_fake_${this.sentInvitations.length}`,
+      token: 'fake-token',
+      acceptUrl: 'https://example.com/accept',
+    };
+  }
+}
+
+/** Every call throws — simulates a WorkOS outage regardless of NODE_ENV. */
+class FailingAuthDirectory implements AuthDirectory {
+  async createOrganization(): Promise<string | null> {
+    throw new Error('simulated WorkOS outage');
+  }
+  async addOrganizationMembership(): Promise<boolean> {
+    throw new Error('simulated WorkOS outage');
+  }
+  async sendInvitation(): Promise<SentInvitation | null> {
+    throw new Error('simulated WorkOS outage');
+  }
+}
 
 let failures = 0;
 
@@ -129,6 +167,46 @@ async function main() {
   });
   check('operator can create inventory in their warehouse', operatorItem.sku === 'SMOKE-OP-1');
   await operator.inventory.remove(operatorItem.id);
+
+  console.log('\nWorkOS invitations on user creation');
+  const fakeDirectory = new FakeAuthDirectory();
+  const adminWithFakeDirectory = createServices(adminCtx, { directory: fakeDirectory });
+  await prisma.user.deleteMany({ where: { email: 'smoke-invite@example.com' } });
+  const invitedUser = await adminWithFakeDirectory.users.create({
+    email: 'smoke-invite@example.com',
+    role: 'OPERATOR',
+    warehouseIds: ['wh_demo_north'],
+  });
+  check(
+    'creating a user sends a WorkOS invitation for the tenant organization',
+    fakeDirectory.sentInvitations.length === 1 &&
+      fakeDirectory.sentInvitations[0].email === 'smoke-invite@example.com',
+  );
+  check(
+    'created user is PENDING with the invitation id WorkOS returned',
+    invitedUser.invitationStatus === 'PENDING' && invitedUser.workosInvitationId === 'invitation_fake_1',
+  );
+
+  console.log('\nA failed WorkOS invitation blocks user creation entirely');
+  const adminWithFailingDirectory = createServices(adminCtx, { directory: new FailingAuthDirectory() });
+  await prisma.user.deleteMany({ where: { email: 'smoke-invite-fail@example.com' } });
+  await expectError(
+    'user is not created when the WorkOS invitation cannot be sent',
+    BusinessRuleViolationError,
+    () =>
+      adminWithFailingDirectory.users.create({
+        email: 'smoke-invite-fail@example.com',
+        role: 'OPERATOR',
+        warehouseIds: ['wh_demo_north'],
+      }),
+  );
+  const leaked = await prisma.user.findFirst({ where: { email: 'smoke-invite-fail@example.com' } });
+  check('no local user row exists after a failed invitation', leaked === null);
+
+  console.log('\nAn invited user links by email on first sign-in and flips to ACCEPTED');
+  const identityRepo = new PrismaIdentityRepository(prisma);
+  const linkedInvitee = await identityRepo.linkWorkosUser(invitedUser.id, 'user_workos_smoke_invite', {});
+  check('linking sets invitationStatus to ACCEPTED', linkedInvitee.invitationStatus === 'ACCEPTED');
 
   console.log('\nStock movement invariants');
   const northItem = await prisma.inventoryItem.findFirstOrThrow({

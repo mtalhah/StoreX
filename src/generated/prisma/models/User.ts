@@ -33,6 +33,9 @@ export type UserMinAggregateOutputType = {
   role: $Enums.UserRole | null
   organizationId: string | null
   isActive: boolean | null
+  workosInvitationId: string | null
+  invitationStatus: $Enums.InvitationStatus | null
+  invitedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -46,6 +49,9 @@ export type UserMaxAggregateOutputType = {
   role: $Enums.UserRole | null
   organizationId: string | null
   isActive: boolean | null
+  workosInvitationId: string | null
+  invitationStatus: $Enums.InvitationStatus | null
+  invitedAt: Date | null
   createdAt: Date | null
   updatedAt: Date | null
 }
@@ -59,6 +65,9 @@ export type UserCountAggregateOutputType = {
   role: number
   organizationId: number
   isActive: number
+  workosInvitationId: number
+  invitationStatus: number
+  invitedAt: number
   createdAt: number
   updatedAt: number
   _all: number
@@ -74,6 +83,9 @@ export type UserMinAggregateInputType = {
   role?: true
   organizationId?: true
   isActive?: true
+  workosInvitationId?: true
+  invitationStatus?: true
+  invitedAt?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -87,6 +99,9 @@ export type UserMaxAggregateInputType = {
   role?: true
   organizationId?: true
   isActive?: true
+  workosInvitationId?: true
+  invitationStatus?: true
+  invitedAt?: true
   createdAt?: true
   updatedAt?: true
 }
@@ -100,6 +115,9 @@ export type UserCountAggregateInputType = {
   role?: true
   organizationId?: true
   isActive?: true
+  workosInvitationId?: true
+  invitationStatus?: true
+  invitedAt?: true
   createdAt?: true
   updatedAt?: true
   _all?: true
@@ -186,6 +204,9 @@ export type UserGroupByOutputType = {
   role: $Enums.UserRole
   organizationId: string
   isActive: boolean
+  workosInvitationId: string | null
+  invitationStatus: $Enums.InvitationStatus | null
+  invitedAt: Date | null
   createdAt: Date
   updatedAt: Date
   _count: UserCountAggregateOutputType | null
@@ -220,6 +241,9 @@ export type UserWhereInput = {
   role?: Prisma.EnumUserRoleFilter<"User"> | $Enums.UserRole
   organizationId?: Prisma.StringFilter<"User"> | string
   isActive?: Prisma.BoolFilter<"User"> | boolean
+  workosInvitationId?: Prisma.StringNullableFilter<"User"> | string | null
+  invitationStatus?: Prisma.EnumInvitationStatusNullableFilter<"User"> | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
@@ -236,6 +260,9 @@ export type UserOrderByWithRelationInput = {
   role?: Prisma.SortOrder
   organizationId?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  workosInvitationId?: Prisma.SortOrderInput | Prisma.SortOrder
+  invitationStatus?: Prisma.SortOrderInput | Prisma.SortOrder
+  invitedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   organization?: Prisma.OrganizationOrderByWithRelationInput
@@ -256,6 +283,9 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   role?: Prisma.EnumUserRoleFilter<"User"> | $Enums.UserRole
   organizationId?: Prisma.StringFilter<"User"> | string
   isActive?: Prisma.BoolFilter<"User"> | boolean
+  workosInvitationId?: Prisma.StringNullableFilter<"User"> | string | null
+  invitationStatus?: Prisma.EnumInvitationStatusNullableFilter<"User"> | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
@@ -272,6 +302,9 @@ export type UserOrderByWithAggregationInput = {
   role?: Prisma.SortOrder
   organizationId?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  workosInvitationId?: Prisma.SortOrderInput | Prisma.SortOrder
+  invitationStatus?: Prisma.SortOrderInput | Prisma.SortOrder
+  invitedAt?: Prisma.SortOrderInput | Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
   _count?: Prisma.UserCountOrderByAggregateInput
@@ -291,6 +324,9 @@ export type UserScalarWhereWithAggregatesInput = {
   role?: Prisma.EnumUserRoleWithAggregatesFilter<"User"> | $Enums.UserRole
   organizationId?: Prisma.StringWithAggregatesFilter<"User"> | string
   isActive?: Prisma.BoolWithAggregatesFilter<"User"> | boolean
+  workosInvitationId?: Prisma.StringNullableWithAggregatesFilter<"User"> | string | null
+  invitationStatus?: Prisma.EnumInvitationStatusNullableWithAggregatesFilter<"User"> | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.DateTimeNullableWithAggregatesFilter<"User"> | Date | string | null
   createdAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeWithAggregatesFilter<"User"> | Date | string
 }
@@ -303,6 +339,9 @@ export type UserCreateInput = {
   lastName?: string | null
   role: $Enums.UserRole
   isActive?: boolean
+  workosInvitationId?: string | null
+  invitationStatus?: $Enums.InvitationStatus | null
+  invitedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutUsersInput
@@ -319,6 +358,9 @@ export type UserUncheckedCreateInput = {
   role: $Enums.UserRole
   organizationId: string
   isActive?: boolean
+  workosInvitationId?: string | null
+  invitationStatus?: $Enums.InvitationStatus | null
+  invitedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   warehouseAssignments?: Prisma.WarehouseAssignmentUncheckedCreateNestedManyWithoutUserInput
@@ -333,6 +375,9 @@ export type UserUpdateInput = {
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  workosInvitationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  invitationStatus?: Prisma.NullableEnumInvitationStatusFieldUpdateOperationsInput | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutUsersNestedInput
@@ -349,6 +394,9 @@ export type UserUncheckedUpdateInput = {
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   organizationId?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  workosInvitationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  invitationStatus?: Prisma.NullableEnumInvitationStatusFieldUpdateOperationsInput | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   warehouseAssignments?: Prisma.WarehouseAssignmentUncheckedUpdateManyWithoutUserNestedInput
@@ -364,6 +412,9 @@ export type UserCreateManyInput = {
   role: $Enums.UserRole
   organizationId: string
   isActive?: boolean
+  workosInvitationId?: string | null
+  invitationStatus?: $Enums.InvitationStatus | null
+  invitedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -376,6 +427,9 @@ export type UserUpdateManyMutationInput = {
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  workosInvitationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  invitationStatus?: Prisma.NullableEnumInvitationStatusFieldUpdateOperationsInput | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -389,6 +443,9 @@ export type UserUncheckedUpdateManyInput = {
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   organizationId?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  workosInvitationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  invitationStatus?: Prisma.NullableEnumInvitationStatusFieldUpdateOperationsInput | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -417,6 +474,9 @@ export type UserCountOrderByAggregateInput = {
   role?: Prisma.SortOrder
   organizationId?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  workosInvitationId?: Prisma.SortOrder
+  invitationStatus?: Prisma.SortOrder
+  invitedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -430,6 +490,9 @@ export type UserMaxOrderByAggregateInput = {
   role?: Prisma.SortOrder
   organizationId?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  workosInvitationId?: Prisma.SortOrder
+  invitationStatus?: Prisma.SortOrder
+  invitedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -443,6 +506,9 @@ export type UserMinOrderByAggregateInput = {
   role?: Prisma.SortOrder
   organizationId?: Prisma.SortOrder
   isActive?: Prisma.SortOrder
+  workosInvitationId?: Prisma.SortOrder
+  invitationStatus?: Prisma.SortOrder
+  invitedAt?: Prisma.SortOrder
   createdAt?: Prisma.SortOrder
   updatedAt?: Prisma.SortOrder
 }
@@ -502,6 +568,14 @@ export type BoolFieldUpdateOperationsInput = {
   set?: boolean
 }
 
+export type NullableEnumInvitationStatusFieldUpdateOperationsInput = {
+  set?: $Enums.InvitationStatus | null
+}
+
+export type NullableDateTimeFieldUpdateOperationsInput = {
+  set?: Date | string | null
+}
+
 export type UserCreateNestedOneWithoutWarehouseAssignmentsInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutWarehouseAssignmentsInput, Prisma.UserUncheckedCreateWithoutWarehouseAssignmentsInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutWarehouseAssignmentsInput
@@ -538,6 +612,9 @@ export type UserCreateWithoutOrganizationInput = {
   lastName?: string | null
   role: $Enums.UserRole
   isActive?: boolean
+  workosInvitationId?: string | null
+  invitationStatus?: $Enums.InvitationStatus | null
+  invitedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   warehouseAssignments?: Prisma.WarehouseAssignmentCreateNestedManyWithoutUserInput
@@ -552,6 +629,9 @@ export type UserUncheckedCreateWithoutOrganizationInput = {
   lastName?: string | null
   role: $Enums.UserRole
   isActive?: boolean
+  workosInvitationId?: string | null
+  invitationStatus?: $Enums.InvitationStatus | null
+  invitedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   warehouseAssignments?: Prisma.WarehouseAssignmentUncheckedCreateNestedManyWithoutUserInput
@@ -596,6 +676,9 @@ export type UserScalarWhereInput = {
   role?: Prisma.EnumUserRoleFilter<"User"> | $Enums.UserRole
   organizationId?: Prisma.StringFilter<"User"> | string
   isActive?: Prisma.BoolFilter<"User"> | boolean
+  workosInvitationId?: Prisma.StringNullableFilter<"User"> | string | null
+  invitationStatus?: Prisma.EnumInvitationStatusNullableFilter<"User"> | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.DateTimeNullableFilter<"User"> | Date | string | null
   createdAt?: Prisma.DateTimeFilter<"User"> | Date | string
   updatedAt?: Prisma.DateTimeFilter<"User"> | Date | string
 }
@@ -608,6 +691,9 @@ export type UserCreateWithoutWarehouseAssignmentsInput = {
   lastName?: string | null
   role: $Enums.UserRole
   isActive?: boolean
+  workosInvitationId?: string | null
+  invitationStatus?: $Enums.InvitationStatus | null
+  invitedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutUsersInput
@@ -623,6 +709,9 @@ export type UserUncheckedCreateWithoutWarehouseAssignmentsInput = {
   role: $Enums.UserRole
   organizationId: string
   isActive?: boolean
+  workosInvitationId?: string | null
+  invitationStatus?: $Enums.InvitationStatus | null
+  invitedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   stockMovements?: Prisma.StockMovementUncheckedCreateNestedManyWithoutCreatedByInput
@@ -652,6 +741,9 @@ export type UserUpdateWithoutWarehouseAssignmentsInput = {
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  workosInvitationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  invitationStatus?: Prisma.NullableEnumInvitationStatusFieldUpdateOperationsInput | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutUsersNestedInput
@@ -667,6 +759,9 @@ export type UserUncheckedUpdateWithoutWarehouseAssignmentsInput = {
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   organizationId?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  workosInvitationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  invitationStatus?: Prisma.NullableEnumInvitationStatusFieldUpdateOperationsInput | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   stockMovements?: Prisma.StockMovementUncheckedUpdateManyWithoutCreatedByNestedInput
@@ -680,6 +775,9 @@ export type UserCreateWithoutStockMovementsInput = {
   lastName?: string | null
   role: $Enums.UserRole
   isActive?: boolean
+  workosInvitationId?: string | null
+  invitationStatus?: $Enums.InvitationStatus | null
+  invitedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutUsersInput
@@ -695,6 +793,9 @@ export type UserUncheckedCreateWithoutStockMovementsInput = {
   role: $Enums.UserRole
   organizationId: string
   isActive?: boolean
+  workosInvitationId?: string | null
+  invitationStatus?: $Enums.InvitationStatus | null
+  invitedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
   warehouseAssignments?: Prisma.WarehouseAssignmentUncheckedCreateNestedManyWithoutUserInput
@@ -724,6 +825,9 @@ export type UserUpdateWithoutStockMovementsInput = {
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  workosInvitationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  invitationStatus?: Prisma.NullableEnumInvitationStatusFieldUpdateOperationsInput | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutUsersNestedInput
@@ -739,6 +843,9 @@ export type UserUncheckedUpdateWithoutStockMovementsInput = {
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   organizationId?: Prisma.StringFieldUpdateOperationsInput | string
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  workosInvitationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  invitationStatus?: Prisma.NullableEnumInvitationStatusFieldUpdateOperationsInput | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   warehouseAssignments?: Prisma.WarehouseAssignmentUncheckedUpdateManyWithoutUserNestedInput
@@ -752,6 +859,9 @@ export type UserCreateManyOrganizationInput = {
   lastName?: string | null
   role: $Enums.UserRole
   isActive?: boolean
+  workosInvitationId?: string | null
+  invitationStatus?: $Enums.InvitationStatus | null
+  invitedAt?: Date | string | null
   createdAt?: Date | string
   updatedAt?: Date | string
 }
@@ -764,6 +874,9 @@ export type UserUpdateWithoutOrganizationInput = {
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  workosInvitationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  invitationStatus?: Prisma.NullableEnumInvitationStatusFieldUpdateOperationsInput | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   warehouseAssignments?: Prisma.WarehouseAssignmentUpdateManyWithoutUserNestedInput
@@ -778,6 +891,9 @@ export type UserUncheckedUpdateWithoutOrganizationInput = {
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  workosInvitationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  invitationStatus?: Prisma.NullableEnumInvitationStatusFieldUpdateOperationsInput | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   warehouseAssignments?: Prisma.WarehouseAssignmentUncheckedUpdateManyWithoutUserNestedInput
@@ -792,6 +908,9 @@ export type UserUncheckedUpdateManyWithoutOrganizationInput = {
   lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
   role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
   isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  workosInvitationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  invitationStatus?: Prisma.NullableEnumInvitationStatusFieldUpdateOperationsInput | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
 }
@@ -845,6 +964,9 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   role?: boolean
   organizationId?: boolean
   isActive?: boolean
+  workosInvitationId?: boolean
+  invitationStatus?: boolean
+  invitedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
@@ -862,6 +984,9 @@ export type UserSelectCreateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   role?: boolean
   organizationId?: boolean
   isActive?: boolean
+  workosInvitationId?: boolean
+  invitationStatus?: boolean
+  invitedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
@@ -876,6 +1001,9 @@ export type UserSelectUpdateManyAndReturn<ExtArgs extends runtime.Types.Extensio
   role?: boolean
   organizationId?: boolean
   isActive?: boolean
+  workosInvitationId?: boolean
+  invitationStatus?: boolean
+  invitedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
@@ -890,11 +1018,14 @@ export type UserSelectScalar = {
   role?: boolean
   organizationId?: boolean
   isActive?: boolean
+  workosInvitationId?: boolean
+  invitationStatus?: boolean
+  invitedAt?: boolean
   createdAt?: boolean
   updatedAt?: boolean
 }
 
-export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "workosUserId" | "email" | "firstName" | "lastName" | "role" | "organizationId" | "isActive" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
+export type UserOmit<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetOmit<"id" | "workosUserId" | "email" | "firstName" | "lastName" | "role" | "organizationId" | "isActive" | "workosInvitationId" | "invitationStatus" | "invitedAt" | "createdAt" | "updatedAt", ExtArgs["result"]["user"]>
 export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   warehouseAssignments?: boolean | Prisma.User$warehouseAssignmentsArgs<ExtArgs>
@@ -927,6 +1058,19 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     role: $Enums.UserRole
     organizationId: string
     isActive: boolean
+    /**
+     * WorkOS invitation id once an invitation has been sent (see
+     * AuthDirectory.sendInvitation). Null until an admin-created user has an
+     * invitation sent, or for users outside the invite flow entirely.
+     */
+    workosInvitationId: string | null
+    /**
+     * Null for users outside the invite flow (self-onboarded admins,
+     * pre-feature rows); PENDING once invited, ACCEPTED once the invitee signs
+     * in and is linked, SKIPPED when WorkOS was unavailable in local/dev.
+     */
+    invitationStatus: $Enums.InvitationStatus | null
+    invitedAt: Date | null
     createdAt: Date
     updatedAt: Date
   }, ExtArgs["result"]["user"]>
@@ -1363,6 +1507,9 @@ export interface UserFieldRefs {
   readonly role: Prisma.FieldRef<"User", 'UserRole'>
   readonly organizationId: Prisma.FieldRef<"User", 'String'>
   readonly isActive: Prisma.FieldRef<"User", 'Boolean'>
+  readonly workosInvitationId: Prisma.FieldRef<"User", 'String'>
+  readonly invitationStatus: Prisma.FieldRef<"User", 'InvitationStatus'>
+  readonly invitedAt: Prisma.FieldRef<"User", 'DateTime'>
   readonly createdAt: Prisma.FieldRef<"User", 'DateTime'>
   readonly updatedAt: Prisma.FieldRef<"User", 'DateTime'>
 }

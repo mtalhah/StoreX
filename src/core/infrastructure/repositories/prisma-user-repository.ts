@@ -5,6 +5,7 @@ import type { Paginated } from '@/core/application/dto/common';
 import { paginate } from '@/core/application/dto/common';
 import type {
   CreateUserData,
+  OrganizationSummary,
   UpdateUserData,
   UserListQuery,
   UserRepository,
@@ -84,6 +85,9 @@ export class PrismaUserRepository implements UserRepository {
           lastName: data.lastName ?? null,
           role: data.role,
           organizationId: this.ctx.organizationId,
+          workosInvitationId: data.workosInvitationId,
+          invitationStatus: data.invitationStatus,
+          invitedAt: data.invitedAt,
           warehouseAssignments: {
             create: data.warehouseIds.map((warehouseId) => ({ warehouseId })),
           },
@@ -147,5 +151,12 @@ export class PrismaUserRepository implements UserRepository {
       select: { id: true },
     });
     return rows.map((r) => r.id);
+  }
+
+  async getOrganization(): Promise<OrganizationSummary> {
+    return this.db.organization.findUniqueOrThrow({
+      where: { id: this.ctx.organizationId },
+      select: { id: true, name: true, workosOrgId: true },
+    });
   }
 }

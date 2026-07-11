@@ -26,7 +26,10 @@
       "PowerShell(npx prisma migrate deploy)",
       "PowerShell(npx prisma db seed 2>&1)",
       "PowerShell(npx tsx scripts/_schema-check.ts)",
-      "Bash(node -e \"const {getWorkOS}=require\\('@workos-inc/authkit-nextjs'\\); const w=getWorkOS\\(\\); console.log\\('organizations:', typeof w.organizations, 'createOrganization:', typeof w.organizations.createOrganization\\);\")"
+      "Bash(node -e \"const {getWorkOS}=require\\('@workos-inc/authkit-nextjs'\\); const w=getWorkOS\\(\\); console.log\\('organizations:', typeof w.organizations, 'createOrganization:', typeof w.organizations.createOrganization\\);\")",
+      "Bash(npx prisma *)",
+      "Bash(npm run *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)"
     ]
   }
 }

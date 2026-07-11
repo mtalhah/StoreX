@@ -1,6 +1,6 @@
-import { ForbiddenError, ValidationError } from '@/core/domain/errors';
+import { BusinessRuleViolationError, ForbiddenError, ValidationError } from '@/core/domain/errors';
 import type { TenantContext } from '../auth/tenant-context';
-import type { AuthDirectory } from '../ports/auth-directory';
+import { WORKOS_ROLE_SLUGS, type AuthDirectory } from '../ports/auth-directory';
 import type { IdentityRepository, UserWithAccess } from '../ports/identity-repository';
 
 export interface VerifiedWorkosUser {
@@ -64,6 +64,12 @@ export class UserSyncService {
    * this user as its Admin. Idempotent — if the user was provisioned in the
    * meantime (e.g. an admin invited them, or a double-submit), the existing
    * record is returned instead of creating a second tenant.
+   *
+   * The WorkOS calls happen BEFORE any local row is written: in production
+   * AuthDirectory throws on failure (see its doc comment), so a failed WorkOS
+   * step aborts onboarding cleanly rather than leaving a half-created tenant.
+   * In local/dev, AuthDirectory degrades to null/false instead of throwing,
+   * so this block is a no-op and today's graceful behavior is unchanged.
    */
   async onboard(workosUser: VerifiedWorkosUser, input: OnboardInput): Promise<UserWithAccess> {
     const existing = await this.resolveExisting(workosUser);
@@ -77,10 +83,28 @@ export class UserSyncService {
       throw new ValidationError(`Organization name must be at most ${MAX_ORG_NAME_LENGTH} characters.`);
     }
 
-    // Prefer linking to the WorkOS Organization already on the session;
-    // otherwise create one (best-effort — null if the directory is down).
-    const workosOrgId =
-      input.sessionWorkosOrgId ?? (await this.directory.createOrganization(organizationName));
+    let workosOrgId = input.sessionWorkosOrgId ?? null;
+    try {
+      // Prefer linking to the WorkOS Organization already on the session
+      // (membership already exists via that org's SSO); otherwise create one
+      // and add this admin as its first member, so it's never left empty.
+      let createdNewOrg = false;
+      if (!workosOrgId) {
+        workosOrgId = await this.directory.createOrganization(organizationName);
+        createdNewOrg = workosOrgId !== null;
+      }
+      if (createdNewOrg && workosOrgId) {
+        await this.directory.addOrganizationMembership({
+          organizationId: workosOrgId,
+          workosUserId: workosUser.workosUserId,
+          roleSlug: WORKOS_ROLE_SLUGS.ADMIN,
+        });
+      }
+    } catch {
+      throw new BusinessRuleViolationError(
+        'We could not set up your WorkOS organization right now. Please try again shortly.',
+      );
+    }
 
     return this.identity.createOrganizationWithAdmin({
       organizationName,
@@ -98,6 +122,7 @@ export class UserSyncService {
       userId: user.id,
       email: user.email,
       role: user.role,
+      workosUserId: user.workosUserId,
       // Admins see the whole organization; everyone else only their
       // assigned warehouses.
       accessibleWarehouseIds: user.role === 'ADMIN' ? null : user.assignedWarehouseIds,

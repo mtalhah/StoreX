@@ -1,5 +1,6 @@
 import type { TenantContext } from '@/core/application/auth/tenant-context';
 import type { AnalyticsRepository } from '@/core/application/ports/analytics-repository';
+import type { AuthDirectory } from '@/core/application/ports/auth-directory';
 import { AnalyticsService } from '@/core/application/services/analytics-service';
 import { InventoryService } from '@/core/application/services/inventory-service';
 import { StockMovementService } from '@/core/application/services/stock-movement-service';
@@ -30,17 +31,25 @@ export interface Services {
   analytics: AnalyticsService;
 }
 
-export function createServices(ctx: TenantContext): Services {
+/**
+ * `overrides.directory` exists solely so tests (the smoke test) can inject a
+ * fake/failing AuthDirectory without touching real WorkOS or flipping
+ * NODE_ENV (which would also change the analytics-repository production
+ * gate below). Route handlers always call this with no overrides and get a
+ * real WorkosAuthDirectory.
+ */
+export function createServices(ctx: TenantContext, overrides?: { directory?: AuthDirectory }): Services {
   const warehouseRepo = new PrismaWarehouseRepository(prisma, ctx);
   const inventoryRepo = new PrismaInventoryRepository(prisma, ctx);
   const movementRepo = new PrismaStockMovementRepository(prisma, ctx);
   const userRepo = new PrismaUserRepository(prisma, ctx);
+  const directory = overrides?.directory ?? new WorkosAuthDirectory();
 
   return {
     warehouses: new WarehouseService(ctx, warehouseRepo),
     inventory: new InventoryService(ctx, inventoryRepo, warehouseRepo),
     movements: new StockMovementService(ctx, movementRepo, inventoryRepo, warehouseRepo),
-    users: new UserService(ctx, userRepo),
+    users: new UserService(ctx, userRepo, directory),
     analytics: new AnalyticsService(ctx, createAnalyticsRepository(ctx)),
   };
 }

@@ -33,6 +33,15 @@ enum MovementType {
   OUTBOUND
 }
 
+/// State of an admin-provisioned user's WorkOS invitation (see AuthDirectory).
+/// Null on User.invitationStatus means the user is outside the invite flow
+/// entirely (a self-onboarded admin, or a row that predates this feature).
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  SKIPPED
+}
+
 model Organization {
   id           String   @id @default(cuid())
   /// WorkOS organization id (org_...) once linked; nullable for self-serve orgs.
@@ -59,6 +68,15 @@ model User {
   role           UserRole
   organizationId String
   isActive       Boolean  @default(true)
+  /// WorkOS invitation id once an invitation has been sent (see
+  /// AuthDirectory.sendInvitation). Null until an admin-created user has an
+  /// invitation sent, or for users outside the invite flow entirely.
+  workosInvitationId String?
+  /// Null for users outside the invite flow (self-onboarded admins,
+  /// pre-feature rows); PENDING once invited, ACCEPTED once the invitee signs
+  /// in and is linked, SKIPPED when WorkOS was unavailable in local/dev.
+  invitationStatus   InvitationStatus?
+  invitedAt          DateTime?
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

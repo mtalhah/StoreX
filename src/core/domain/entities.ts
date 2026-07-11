@@ -1,4 +1,4 @@
-import type { MovementType, UserRole } from './enums';
+import type { InvitationStatus, MovementType, UserRole } from './enums';
 
 /** Core domain entities — plain data shapes, no persistence concerns. */
 
@@ -18,6 +18,11 @@ export interface User {
   role: UserRole;
   organizationId: string;
   isActive: boolean;
+  /** WorkOS invitation id once sent (see AuthDirectory.sendInvitation). */
+  workosInvitationId: string | null;
+  /** Null for users outside the invite flow (self-onboarded admins, pre-feature rows). */
+  invitationStatus: InvitationStatus | null;
+  invitedAt: Date | null;
   createdAt: Date;
 }
 

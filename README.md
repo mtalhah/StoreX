@@ -123,6 +123,7 @@ Organization 1──* Warehouse 1──* InventoryItem 1──* StockMovement
 | --- | --- | --- |
 | `organizations` | Tenant root | unique `workosOrgId` |
 | `users` | Members; linked to WorkOS on first sign-in | unique `(organizationId, email)`, unique `workosUserId` |
+| ↳ invitation fields | `workosInvitationId`, `invitationStatus` (`PENDING`/`ACCEPTED`/`SKIPPED`), `invitedAt` | all nullable — null means outside the invite flow (self-onboarded admin, pre-feature row) |
 | `warehouses` | Name / location / capacity (storage units) | unique `(organizationId, name)`, `CHECK capacity > 0` |
 | `warehouse_assignments` | Manager/operator access grants | PK `(userId, warehouseId)` |
 | `inventory_items` | SKU stock + storage ratio per warehouse | unique `(warehouseId, sku)`, `CHECK quantity >= 0`, `CHECK storageUnitsPerItem > 0` |
@@ -170,7 +171,9 @@ WorkOS AuthKit (hosted UI, sealed HTTP-only session cookies):
    maps the WorkOS identity to an internal user:
    - already linked (`workosUserId`) → normal sign-in;
    - **provisioned/invited by an admin** (email match, unlinked) → link
-     identity → straight into their inviter's tenant;
+     identity (and flip `invitationStatus` to `ACCEPTED` if it was `PENDING`)
+     → straight into their inviter's tenant, with their existing role and
+     warehouse assignments untouched;
    - unknown → resolves to `null`, and the app redirects to **`/onboarding`**
      (see below). Unknown users are never silently turned into a tenant.
 4. `getTenantContext()` (memoized per request with React `cache()`) builds
@@ -186,13 +189,59 @@ A first-time admin doesn't get an auto-guessed organization. Instead:
    layout's own redirect can't loop).
 3. The admin enters a company name. The server action calls
    `UserSyncService.onboard()`, which **links to the WorkOS Organization on
-   the session if present, otherwise creates one** (`WorkosAuthDirectory`,
-   best-effort — onboarding still succeeds if the directory is unavailable,
-   leaving `workosOrgId` null), then creates the tenant with the admin as its
-   Admin. It is idempotent (a user invited in the meantime just resolves).
-4. The admin invites managers/operators (provisioned by email). Those users
-   authenticate through WorkOS and are linked by email on first sign-in — they
-   never see the onboarding page.
+   the session if present, otherwise creates one** and adds the admin as its
+   first member (`WorkosAuthDirectory.createOrganization` +
+   `addOrganizationMembership`) — so a WorkOS Organization is never left with
+   zero members — and only then creates the local tenant with the admin as
+   its Admin. It is idempotent (a user invited in the meantime just
+   resolves). **Environment-dependent failure policy:** in production, any
+   WorkOS failure here throws and onboarding fails cleanly (no tenant is
+   created without a real WorkOS Organization behind it, since one is
+   required to invite anyone later); in local/dev, WorkOS failures degrade to
+   `workosOrgId: null` and onboarding still succeeds, exactly as before.
+4. The admin invites managers/operators — see **User invitations** below.
+
+### User invitations
+
+Users an admin creates from the Users page are **not** auto-linked — they go
+through a real WorkOS invitation:
+
+1. Admin fills in email/role/warehouses. `UserService.create()` validates the
+   role/warehouse assignment rules, then calls
+   `AuthDirectory.sendInvitation()` for the tenant's WorkOS Organization
+   **before** writing any local row — `roleSlug` is mapped from the Storex
+   role via `WORKOS_ROLE_SLUGS` (`ADMIN`→`admin`, `MANAGER`→`manager`,
+   `OPERATOR`→`operator`).
+2. Only once WorkOS confirms the invitation is the local `users` row created,
+   stamped with `workosInvitationId`/`invitationStatus: 'PENDING'`/
+   `invitedAt`. This ordering is what makes "no invitation ⇒ no local user"
+   hold in production without any rollback logic — if the WorkOS call throws,
+   the Prisma write is never reached.
+3. **Environment-dependent failure policy**, same as onboarding: in
+   production a failed invitation throws and `UserService.create()` refuses
+   to create the user (surfaced as a 422 `BUSINESS_RULE_VIOLATION`); in
+   local/dev it degrades to `null` and Storex still creates the user with
+   `invitationStatus: 'SKIPPED'` (visible in the Users grid as "Invite not
+   sent") so the app stays usable without real WorkOS credentials.
+4. The invitee accepts the emailed invitation; WorkOS creates/links their
+   WorkOS user and creates the **WorkOS Organization Membership**. This is a
+   WorkOS-side concept only — it does not carry Storex permissions.
+5. On their first Storex sign-in, `UserSyncService.resolveExisting()` finds
+   the unlinked-by-email row, links `workosUserId`, and flips
+   `invitationStatus` to `ACCEPTED`. Their Storex `role` and warehouse
+   assignments — set by the admin at creation time — are never touched by any
+   of this; **Storex's local `role` column remains the sole source of truth
+   for app permissions**, whether or not the WorkOS role slug was ever
+   configured (see the fallback below).
+
+**WorkOS role slugs are optional.** A fresh WorkOS project has no
+`admin`/`manager`/`operator` Organization Roles configured. If sending an
+invitation (or the onboarding membership) fails specifically because the
+role slug is unrecognized, `WorkosAuthDirectory` retries once without a role
+slug and proceeds — the invitation still sends. Configuring these roles in
+the WorkOS dashboard (Organization Roles) is recommended if you want
+WorkOS-side authorization to mirror Storex's roles, but it is never required
+for invitations to work.
 
 ## Authorization strategy
 
@@ -441,14 +490,25 @@ must not race each other on schema changes.
 6. **Swappable analytics port with a dev-only Postgres implementation.**
    Keeps the "dashboard reads only BigQuery" production rule (enforced in the
    container) without making local development depend on a GCP project.
-7. **Self-serve org creation on unknown sign-in.** Demonstrates tenant
-   provisioning without an ops step; a real deployment might gate this behind
-   invitations or WorkOS Organizations + SSO per tenant.
+7. **Self-serve org creation on unknown sign-in, for the first admin only.**
+   Demonstrates tenant provisioning without an ops step. Every user an admin
+   subsequently creates goes through a real WorkOS invitation (see **User
+   invitations** above) rather than silent auto-linking.
 8. **Server-driven pagination/sorting with AG Grid as the renderer** rather
    than AG Grid's client-side model — the API stays the source of truth and
    the pattern scales past in-memory datasets.
 9. **Prisma 7 with the pg driver adapter** — no Rust query engine binary,
    smaller Cloud Run images, first-class TS client.
+10. **WorkOS-before-local-write ordering, with the failure policy owned by
+    `WorkosAuthDirectory` alone.** Both `UserService.create()` and
+    `UserSyncService.onboard()` call WorkOS first and only write to Postgres
+    once it succeeds (or degrades) — this is what makes "never create a local
+    user/tenant WorkOS doesn't know about, in production" hold without any
+    compensating-delete/rollback logic. The production-throws /
+    local-dev-degrades branch lives entirely inside `WorkosAuthDirectory`
+    (one `NODE_ENV` check, mirroring the existing one in
+    `createAnalyticsRepository`), so the application services stay
+    environment-agnostic.
 
 ## Future improvements
 
@@ -457,8 +517,9 @@ must not race each other on schema changes.
 - **Cursor-based pagination** for the movements ledger at scale.
 - **Warehouse capacity under advisory locks** to close the concurrent-inbound
   overshoot window.
-- **WorkOS Organizations + SSO/SCIM** per tenant (enterprise IdP onboarding),
-  org switcher for multi-org membership.
+- **WorkOS SSO/SCIM** per tenant (enterprise IdP onboarding), org switcher for
+  multi-org membership, and revoking/resending invitations from the Users UI
+  (currently only `sendInvitation` is wired up).
 - **Materialized BigQuery aggregates + BI Engine** when dashboard volume grows.
 - **Audit log table** for administrative actions (user/warehouse changes).
 - **Unit/integration test suites** (service-layer rules, repository scoping

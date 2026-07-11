@@ -114,7 +114,7 @@ function UserForm({
         });
         toast.success('User updated.');
       } else {
-        await apiFetch('/api/v1/users', {
+        const res = await apiFetch<UserRow>('/api/v1/users', {
           method: 'POST',
           body: JSON.stringify({
             email,
@@ -124,7 +124,13 @@ function UserForm({
             warehouseIds,
           }),
         });
-        toast.success(`${email} invited. They can sign in with this email right away.`);
+        if (res.data.invitationStatus === 'SKIPPED') {
+          toast.warning(
+            `${email} was added, but no WorkOS invitation was sent — WorkOS isn't configured in this environment.`,
+          );
+        } else {
+          toast.success(`${email} invited — they'll get a WorkOS email to accept before they can sign in.`);
+        }
       }
       onSaved();
       onOpenChange(false);
@@ -144,7 +150,7 @@ function UserForm({
         <DialogDescription>
           {isEdit
             ? 'Change role, warehouse access, or account status.'
-            : 'The user signs in through WorkOS with this email and is linked automatically.'}
+            : 'An email invitation is sent through WorkOS. They must accept it before they can sign in — Storex then links their account to this record automatically.'}
         </DialogDescription>
       </DialogHeader>
       <form onSubmit={submit} className="space-y-4">

@@ -95,6 +95,9 @@ export const UserScalarFieldEnum = {
   role: 'role',
   organizationId: 'organizationId',
   isActive: 'isActive',
+  workosInvitationId: 'workosInvitationId',
+  invitationStatus: 'invitationStatus',
+  invitedAt: 'invitedAt',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

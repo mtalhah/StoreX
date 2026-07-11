@@ -24,3 +24,12 @@ export const MovementType = {
 } as const
 
 export type MovementType = (typeof MovementType)[keyof typeof MovementType]
+
+
+export const InvitationStatus = {
+  PENDING: 'PENDING',
+  ACCEPTED: 'ACCEPTED',
+  SKIPPED: 'SKIPPED'
+} as const
+
+export type InvitationStatus = (typeof InvitationStatus)[keyof typeof InvitationStatus]

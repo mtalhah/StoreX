@@ -58,24 +58,35 @@ export function UsersView({ currentUserId }: { currentUserId: string }) {
         headerName: 'Status',
         maxWidth: 130,
         sortable: false,
-        cellRenderer: (p: { data?: UserRow }) =>
-          p.data ? (
-            p.data.isActive ? (
-              p.data.workosUserId ? (
-                <Badge variant="outline" className="border-emerald-200 bg-emerald-500/10 text-emerald-600">
-                  Active
-                </Badge>
-              ) : (
-                <Badge variant="outline" className="border-blue-200 bg-blue-500/10 text-blue-600">
-                  Invited
-                </Badge>
-              )
-            ) : (
+        cellRenderer: (p: { data?: UserRow }) => {
+          if (!p.data) return null;
+          if (!p.data.isActive) {
+            return (
               <Badge variant="outline" className="border-zinc-200 bg-zinc-500/10 text-zinc-500">
                 Deactivated
               </Badge>
-            )
-          ) : null,
+            );
+          }
+          if (p.data.workosUserId) {
+            return (
+              <Badge variant="outline" className="border-emerald-200 bg-emerald-500/10 text-emerald-600">
+                Active
+              </Badge>
+            );
+          }
+          if (p.data.invitationStatus === 'SKIPPED') {
+            return (
+              <Badge variant="outline" className="border-amber-200 bg-amber-500/10 text-amber-600">
+                Invite not sent
+              </Badge>
+            );
+          }
+          return (
+            <Badge variant="outline" className="border-blue-200 bg-blue-500/10 text-blue-600">
+              Invited
+            </Badge>
+          );
+        },
       },
       {
         colId: 'actions',

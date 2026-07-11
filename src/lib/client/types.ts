@@ -2,7 +2,7 @@
  * Client-side row shapes: the JSON forms of the server DTOs (Dates arrive as
  * ISO strings over the wire).
  */
-import type { MovementType, UserRole } from '@/core/domain/enums';
+import type { InvitationStatus, MovementType, UserRole } from '@/core/domain/enums';
 
 export interface WarehouseRow {
   id: string;
@@ -52,6 +52,7 @@ export interface UserRow {
   role: UserRole;
   isActive: boolean;
   workosUserId: string | null;
+  invitationStatus: InvitationStatus | null;
   warehouses: Array<{ id: string; name: string }>;
   createdAt: string;
 }

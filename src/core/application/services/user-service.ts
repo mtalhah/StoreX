@@ -6,8 +6,9 @@ import {
 import { authorize, Permission } from '../auth/permissions';
 import type { TenantContext } from '../auth/tenant-context';
 import type { Paginated } from '../dto/common';
+import { WORKOS_ROLE_SLUGS, type AuthDirectory, type SentInvitation } from '../ports/auth-directory';
 import type {
-  CreateUserData,
+  CreateUserInput,
   UpdateUserData,
   UserListQuery,
   UserRepository,
@@ -19,6 +20,7 @@ export class UserService {
   constructor(
     private readonly ctx: TenantContext,
     private readonly users: UserRepository,
+    private readonly directory: AuthDirectory,
   ) {}
 
   async list(query: UserListQuery): Promise<Paginated<UserWithAssignments>> {
@@ -34,13 +36,40 @@ export class UserService {
   }
 
   /**
-   * Provisions a user inside the admin's organization. The user signs in via
-   * WorkOS later; UserSyncService links the identity by email on first login.
+   * Provisions a user inside the admin's organization: validates role/
+   * warehouse assignment rules, then sends a WorkOS invitation for the
+   * tenant's WorkOS Organization BEFORE writing any local row — so a failed
+   * invitation (required in production; see AuthDirectory) never leaves a
+   * local user with no way to actually sign in. The invitee accepts the
+   * email invite, WorkOS creates/links their WorkOS user and Organization
+   * Membership, and UserSyncService links that identity to this row by email
+   * on first sign-in.
    */
-  async create(data: CreateUserData): Promise<UserWithAssignments> {
+  async create(input: CreateUserInput): Promise<UserWithAssignments> {
     authorize(this.ctx, Permission.UsersManage);
-    await this.validateAssignments(data.role, data.warehouseIds);
-    return this.users.create(data);
+    await this.validateAssignments(input.role, input.warehouseIds);
+
+    const organization = await this.users.getOrganization();
+    let invitation: SentInvitation | null;
+    try {
+      invitation = await this.directory.sendInvitation({
+        organizationId: organization.workosOrgId,
+        email: input.email,
+        roleSlug: WORKOS_ROLE_SLUGS[input.role],
+        inviterWorkosUserId: this.ctx.workosUserId ?? undefined,
+      });
+    } catch {
+      throw new BusinessRuleViolationError(
+        `Could not send a WorkOS invitation to ${input.email}; the user was not created. Try again shortly.`,
+      );
+    }
+
+    return this.users.create({
+      ...input,
+      workosInvitationId: invitation?.id ?? null,
+      invitationStatus: invitation ? 'PENDING' : 'SKIPPED',
+      invitedAt: invitation ? new Date() : null,
+    });
   }
 
   async update(id: string, data: UpdateUserData): Promise<UserWithAssignments> {
