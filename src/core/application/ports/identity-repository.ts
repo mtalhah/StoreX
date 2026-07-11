@@ -16,9 +16,15 @@ export interface IdentityRepository {
   /** Provisioned-but-never-signed-in users: matched by email, not yet linked. */
   findUnlinkedByEmail(email: string): Promise<UserWithAccess | null>;
   linkWorkosUser(userId: string, workosUserId: string, profile: { firstName?: string; lastName?: string }): Promise<UserWithAccess>;
-  /** Self-serve signup: create a fresh organization with this user as Admin. */
+  /**
+   * Onboarding: create a fresh tenant (Organization) with this WorkOS user as
+   * its Admin. `workosOrgId` links the tenant to a WorkOS Organization when
+   * one was created or is already associated with the session; it is null
+   * when the directory was unavailable.
+   */
   createOrganizationWithAdmin(input: {
     organizationName: string;
+    workosOrgId?: string | null;
     workosUserId: string;
     email: string;
     firstName?: string;

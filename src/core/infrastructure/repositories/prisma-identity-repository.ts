@@ -64,6 +64,7 @@ export class PrismaIdentityRepository implements IdentityRepository {
 
   async createOrganizationWithAdmin(input: {
     organizationName: string;
+    workosOrgId?: string | null;
     workosUserId: string;
     email: string;
     firstName?: string;
@@ -76,7 +77,12 @@ export class PrismaIdentityRepository implements IdentityRepository {
         firstName: input.firstName ?? null,
         lastName: input.lastName ?? null,
         role: 'ADMIN',
-        organization: { create: { name: input.organizationName } },
+        organization: {
+          create: {
+            name: input.organizationName,
+            workosOrgId: input.workosOrgId ?? null,
+          },
+        },
       },
       include: accessInclude,
     });

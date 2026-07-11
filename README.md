@@ -166,31 +166,65 @@ WorkOS AuthKit (hosted UI, sealed HTTP-only session cookies):
    refreshes the session, redirects anonymous users to hosted sign-in.
 2. WorkOS redirects back to `/api/auth/callback` (`handleAuth`), which seals
    the session into an encrypted cookie and forwards to `/dashboard`.
-3. On the first authenticated request, `UserSyncService.resolve()` maps the
-   WorkOS identity to an internal user:
+3. On the first authenticated request, `UserSyncService.resolveExisting()`
+   maps the WorkOS identity to an internal user:
    - already linked (`workosUserId`) → normal sign-in;
-   - **provisioned by an admin** (email match, unlinked) → link identity;
-   - unknown → **self-serve signup**: a fresh organization is created with
-     the user as its Admin (new tenants start empty).
+   - **provisioned/invited by an admin** (email match, unlinked) → link
+     identity → straight into their inviter's tenant;
+   - unknown → resolves to `null`, and the app redirects to **`/onboarding`**
+     (see below). Unknown users are never silently turned into a tenant.
 4. `getTenantContext()` (memoized per request with React `cache()`) builds
    the TenantContext used by every layer. Deactivated users are rejected here.
+
+### Admin onboarding
+
+A first-time admin doesn't get an auto-guessed organization. Instead:
+
+1. Admin signs in through WorkOS (authenticated, but no tenant yet).
+2. `getTenantContext()` finds no internal user → redirects to `/onboarding`
+   (a page deliberately **outside** the `(app)` route group, so the app
+   layout's own redirect can't loop).
+3. The admin enters a company name. The server action calls
+   `UserSyncService.onboard()`, which **links to the WorkOS Organization on
+   the session if present, otherwise creates one** (`WorkosAuthDirectory`,
+   best-effort — onboarding still succeeds if the directory is unavailable,
+   leaving `workosOrgId` null), then creates the tenant with the admin as its
+   Admin. It is idempotent (a user invited in the meantime just resolves).
+4. The admin invites managers/operators (provisioned by email). Those users
+   authenticate through WorkOS and are linked by email on first sign-in — they
+   never see the onboarding page.
 
 ## Authorization strategy
 
 Three roles — `ADMIN`, `MANAGER` (Warehouse Manager), `OPERATOR` — mapped to
 fine-grained permissions in one declarative table
-([permissions.ts](src/core/application/auth/permissions.ts)):
+([permissions.ts](src/core/application/auth/permissions.ts)). The model is
+**separation of duties**: admins own the org structure and have read-only
+visibility into operations; managers and operators run the day-to-day
+inventory and stock movements.
 
 | Permission | Admin | Manager | Operator |
 | --- | :-: | :-: | :-: |
 | users:manage / users:read | ✅ | — | — |
 | warehouses:manage | ✅ | — | — |
 | warehouses:read | ✅ | ✅ (assigned) | ✅ (own) |
-| inventory:manage | ✅ | ✅ (assigned) | — |
+| inventory:manage | — | ✅ (assigned) | ✅ (own) |
 | inventory:read | ✅ | ✅ (assigned) | ✅ (own) |
-| movements:create | ✅ | ✅ (assigned) | ✅ (own) |
+| movements:create | — | ✅ (assigned) | ✅ (own) |
 | movements:read | ✅ | ✅ (assigned) | ✅ (own) |
-| analytics:read | ✅ | ✅ (assigned) | — |
+| analytics:read | ✅ (all) | ✅ (assigned) | ✅ (own) |
+
+The **Warehouses section** (nav item + `/warehouses` page) is gated by a
+separate rule, not a plain permission, because the Manager case depends on
+assignment count (`canViewWarehousesSection`): admins always see it, a manager
+sees it only when assigned to **more than one** warehouse (a single-warehouse
+manager has nothing to switch between), and operators never do. All three
+roles keep `warehouses:read` so the inventory/movements dropdowns can list
+their own warehouses.
+
+Analytics is warehouse-scoped by role: admins see the whole tenant, managers
+see only their assigned warehouses, and operators see only their one warehouse
+— the same `accessibleWarehouseIds` scope the OLTP repositories use.
 
 Enforced at **three** levels — hiding UI is never the security boundary:
 
@@ -322,8 +356,9 @@ The seed creates the **Acme Logistics** demo tenant: 3 warehouses, 6 users,
 ~28 SKUs, and ~90 days of movement history. To sign in as a seeded role, set
 `SEED_ADMIN_EMAIL` (and/or `SEED_MANAGER_EMAIL`, `SEED_OPERATOR_EMAIL`) to an
 email you can authenticate with **before** seeding — first sign-in links the
-WorkOS identity by email. Signing in with any other email self-serves a brand
-new empty organization, which is also the quickest way to see tenant isolation.
+WorkOS identity by email. Signing in with any other email lands on the
+**onboarding** screen, where naming a company creates a fresh empty tenant
+(you become its admin) — the quickest way to see tenant isolation.
 
 ## Deployment
 

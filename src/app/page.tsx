@@ -30,7 +30,8 @@ export default async function LandingPage() {
           Sign in to continue
         </Button>
         <p className="text-xs text-muted-foreground">
-          Secured by WorkOS AuthKit. New here? Signing in creates your organization.
+          Secured by WorkOS AuthKit. New here? After signing in you&apos;ll name your organization
+          to get started.
         </p>
       </div>
     </main>

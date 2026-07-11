@@ -1,5 +1,9 @@
 import { Boxes } from 'lucide-react';
-import { hasPermission, Permission } from '@/core/application/auth/permissions';
+import {
+  canViewWarehousesSection,
+  hasPermission,
+  Permission,
+} from '@/core/application/auth/permissions';
 import { SidebarNav, type NavItem } from '@/components/layout/sidebar-nav';
 import { UserMenu } from '@/components/layout/user-menu';
 import { getTenantContext } from '@/lib/auth/session';
@@ -14,15 +18,18 @@ import { ROLE_LABELS } from '@/lib/format';
 export default async function AppLayout({ children }: { children: React.ReactNode }) {
   const ctx = await getTenantContext();
 
-  const navItems: Array<NavItem & { permission: Permission }> = [
-    { href: '/dashboard', label: 'Dashboard', icon: 'dashboard', permission: Permission.AnalyticsRead },
-    { href: '/warehouses', label: 'Warehouses', icon: 'warehouse', permission: Permission.WarehousesRead },
-    { href: '/inventory', label: 'Inventory', icon: 'inventory', permission: Permission.InventoryRead },
-    { href: '/movements', label: 'Movements', icon: 'movements', permission: Permission.MovementsRead },
-    { href: '/users', label: 'Users', icon: 'users', permission: Permission.UsersManage },
+  // Each nav item declares a predicate over the context. Most are a plain
+  // permission check; the Warehouses section has its own rule (admins always,
+  // managers only when they run more than one warehouse, operators never).
+  const navItems: Array<NavItem & { visible: boolean }> = [
+    { href: '/dashboard', label: 'Dashboard', icon: 'dashboard', visible: hasPermission(ctx.role, Permission.AnalyticsRead) },
+    { href: '/warehouses', label: 'Warehouses', icon: 'warehouse', visible: canViewWarehousesSection(ctx) },
+    { href: '/inventory', label: 'Inventory', icon: 'inventory', visible: hasPermission(ctx.role, Permission.InventoryRead) },
+    { href: '/movements', label: 'Movements', icon: 'movements', visible: hasPermission(ctx.role, Permission.MovementsRead) },
+    { href: '/users', label: 'Users', icon: 'users', visible: hasPermission(ctx.role, Permission.UsersManage) },
   ];
   const visibleItems = navItems
-    .filter((item) => hasPermission(ctx.role, item.permission))
+    .filter((item) => item.visible)
     .map(({ href, label, icon }) => ({ href, label, icon }));
 
   return (

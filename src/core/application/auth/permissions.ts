@@ -22,10 +22,33 @@ export const Permission = {
 
 export type Permission = (typeof Permission)[keyof typeof Permission];
 
-const ALL_PERMISSIONS = Object.values(Permission);
-
+/**
+ * Role → permission matrix. Deliberately a separation-of-duties model:
+ *  - ADMIN owns the org structure (users, warehouses) and has read-only
+ *    visibility into the operational data — admins do NOT record movements
+ *    or edit inventory themselves.
+ *  - MANAGER and OPERATOR are the operational roles: they read + write
+ *    inventory and stock movements for the warehouses they're assigned to,
+ *    and read analytics scoped to those warehouses. Their permission SETS
+ *    are identical; they differ only in warehouse assignment (operators are
+ *    pinned to exactly one) and in whether the Warehouses section is shown
+ *    (see `canViewWarehousesSection`).
+ *
+ * WarehousesRead is granted to every role because the inventory/movements
+ * UIs list warehouses to populate scoped dropdowns; the list endpoint is
+ * already tenant/warehouse-scoped, so a non-admin only ever sees their own
+ * warehouses. Visibility of the Warehouses *section* is a separate rule.
+ */
 const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
-  ADMIN: ALL_PERMISSIONS,
+  ADMIN: [
+    Permission.UsersManage,
+    Permission.UsersRead,
+    Permission.WarehousesManage,
+    Permission.WarehousesRead,
+    Permission.InventoryRead,
+    Permission.MovementsRead,
+    Permission.AnalyticsRead,
+  ],
   MANAGER: [
     Permission.WarehousesRead,
     Permission.InventoryManage,
@@ -36,9 +59,11 @@ const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
   ],
   OPERATOR: [
     Permission.WarehousesRead,
+    Permission.InventoryManage,
     Permission.InventoryRead,
     Permission.MovementsCreate,
     Permission.MovementsRead,
+    Permission.AnalyticsRead,
   ],
 };
 
@@ -51,4 +76,22 @@ export function authorize(ctx: TenantContext, permission: Permission): void {
   if (!hasPermission(ctx.role, permission)) {
     throw new ForbiddenError();
   }
+}
+
+/**
+ * Whether the Warehouses section (nav item + `/warehouses` page) is shown.
+ * Not a plain permission because the Manager case depends on how many
+ * warehouses the user is assigned to, not just their role:
+ *  - ADMIN: always (org-wide management).
+ *  - MANAGER: only when assigned to more than one warehouse (a single-warehouse
+ *    manager has nothing to switch between, so the section is hidden).
+ *  - OPERATOR: never.
+ *
+ * This gates UI/navigation only. Data access to warehouses is still enforced
+ * by `WarehousesRead` at the API layer and by scoping in the repositories.
+ */
+export function canViewWarehousesSection(ctx: TenantContext): boolean {
+  if (ctx.role === 'ADMIN') return true;
+  if (ctx.role === 'MANAGER') return (ctx.accessibleWarehouseIds?.length ?? 0) > 1;
+  return false;
 }

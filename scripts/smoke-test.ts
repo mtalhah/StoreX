@@ -58,6 +58,20 @@ async function contextFor(seedUserId: string) {
   return UserSyncService.toTenantContext(withAccess);
 }
 
+/**
+ * Services for a MANAGER/OPERATOR assigned to `warehouseId`. Admins are now
+ * read-only over movements/inventory (separation of duties), so capacity and
+ * stock checks must run as an operational role that actually holds the
+ * warehouse — this finds one regardless of which warehouse an item lands in.
+ */
+async function recorderFor(warehouseId: string) {
+  const assignment = await prisma.warehouseAssignment.findFirstOrThrow({
+    where: { warehouseId, user: { role: { in: ['MANAGER', 'OPERATOR'] } } },
+    select: { userId: true },
+  });
+  return createServices(await contextFor(assignment.userId));
+}
+
 async function main() {
   const adminCtx = await contextFor('usr_demo_admin');
   const managerCtx = await contextFor('usr_demo_manager1'); // North + Central
@@ -94,7 +108,27 @@ async function main() {
   await expectError('manager cannot create warehouses', ForbiddenError, () =>
     manager.warehouses.create({ name: 'X', location: 'Y', capacity: 10 }),
   );
-  await expectError('operator cannot view analytics', ForbiddenError, () => operator.analytics.kpis());
+  // Admin is read-only over operational data (separation of duties): the
+  // authorize() guard fires before any lookup, so the placeholder ids never
+  // matter.
+  await expectError('admin cannot record stock movements', ForbiddenError, () =>
+    admin.movements.record({ inventoryItemId: 'anything', type: 'INBOUND', quantity: 1 }),
+  );
+  await expectError('admin cannot create inventory items', ForbiddenError, () =>
+    admin.inventory.create({ warehouseId: 'anything', sku: 'X', name: 'Y' }),
+  );
+  // Operators now have analytics (scoped to their warehouse) and inventory
+  // management (both new grants).
+  const operatorKpis = await operator.analytics.kpis();
+  check('operator can view analytics for their warehouse', Number.isFinite(operatorKpis.activeSkus));
+  await prisma.inventoryItem.deleteMany({ where: { warehouseId: 'wh_demo_north', sku: 'SMOKE-OP-1' } });
+  const operatorItem = await operator.inventory.create({
+    warehouseId: 'wh_demo_north',
+    sku: 'SMOKE-OP-1',
+    name: 'Operator-created item',
+  });
+  check('operator can create inventory in their warehouse', operatorItem.sku === 'SMOKE-OP-1');
+  await operator.inventory.remove(operatorItem.id);
 
   console.log('\nStock movement invariants');
   const northItem = await prisma.inventoryItem.findFirstOrThrow({
@@ -157,10 +191,11 @@ async function main() {
   const bulkyRatio = Number(bulkyItem.storageUnitsPerItem);
   const bulkyRemaining = bulkyWarehouse.capacity - bulkyWarehouse.usedCapacity;
   const overCapacityQty = Math.floor(bulkyRemaining / bulkyRatio) + 10;
+  const bulkyRecorder = await recorderFor(bulkyItem.warehouseId);
   await expectError(
     'a bulky item is rejected once its weighted quantity would exceed capacity',
     CapacityExceededError,
-    () => admin.movements.record({ inventoryItemId: bulkyItem.id, type: 'INBOUND', quantity: overCapacityQty }),
+    () => bulkyRecorder.movements.record({ inventoryItemId: bulkyItem.id, type: 'INBOUND', quantity: overCapacityQty }),
   );
 
   // A tiny-ratio item should NOT be rejected for a quantity that would only
@@ -172,13 +207,14 @@ async function main() {
   const tinyRatio = Number(tinyItem.storageUnitsPerItem);
   const tinyRemaining = tinyWarehouse.capacity - tinyWarehouse.usedCapacity;
   const tinyQty = Math.min(5000, Math.floor((tinyRemaining / tinyRatio) * 0.5));
-  await admin.movements.record({ inventoryItemId: tinyItem.id, type: 'INBOUND', quantity: tinyQty, note: 'smoke-test' });
+  const tinyRecorder = await recorderFor(tinyItem.warehouseId);
+  await tinyRecorder.movements.record({ inventoryItemId: tinyItem.id, type: 'INBOUND', quantity: tinyQty, note: 'smoke-test' });
   const tinyAfterIn = await prisma.inventoryItem.findUniqueOrThrow({ where: { id: tinyItem.id } });
   check(
     'a tiny-ratio item accepts a large quantity without hitting capacity',
     tinyAfterIn.quantity === tinyItem.quantity + tinyQty,
   );
-  await admin.movements.record({ inventoryItemId: tinyItem.id, type: 'OUTBOUND', quantity: tinyQty, note: 'smoke-test revert' });
+  await tinyRecorder.movements.record({ inventoryItemId: tinyItem.id, type: 'OUTBOUND', quantity: tinyQty, note: 'smoke-test revert' });
 
   console.log('\nTenant integrity on inventory creation');
   // Fixed ids + upsert: a second tenant that persists across smoke runs
@@ -199,11 +235,14 @@ async function main() {
     },
     update: {},
   });
+  // Checked via a MANAGER (admins can't create inventory at all now): the
+  // foreign warehouse is outside their scope, so the scoped findById returns
+  // null and the create is a NotFound rather than an FK/tenant leak.
   await expectError(
-    "admin cannot create an inventory item against another organization's warehouse",
+    "a manager cannot create an inventory item against another organization's warehouse",
     NotFoundError,
     () =>
-      admin.inventory.create({
+      manager.inventory.create({
         warehouseId: foreignWarehouse.id,
         sku: 'SMOKE-X',
         name: 'Should not be created',

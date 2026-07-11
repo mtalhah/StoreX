@@ -8,6 +8,7 @@ import { UserSyncService } from '@/core/application/services/user-sync-service';
 import { WarehouseService } from '@/core/application/services/warehouse-service';
 import { BigQueryAnalyticsRepository } from './analytics/bigquery-analytics-repository';
 import { PostgresAnalyticsRepository } from './analytics/postgres-analytics-repository';
+import { WorkosAuthDirectory } from './auth/workos-auth-directory';
 import { prisma } from './db/prisma';
 import { PrismaIdentityRepository } from './repositories/prisma-identity-repository';
 import { PrismaInventoryRepository } from './repositories/prisma-inventory-repository';
@@ -57,7 +58,12 @@ function createAnalyticsRepository(ctx: TenantContext): AnalyticsRepository {
   return new BigQueryAnalyticsRepository(ctx);
 }
 
-/** Sign-in bootstrap service — the only consumer of the unscoped identity repo. */
+/**
+ * Sign-in / onboarding bootstrap service — the only consumer of the unscoped
+ * identity repo and the WorkOS directory. WorkosAuthDirectory imports
+ * `@workos-inc/authkit-nextjs` lazily, so referencing it here does not pull
+ * that Next-only package into non-Next contexts (e.g. the tsx smoke test).
+ */
 export function createUserSyncService(): UserSyncService {
-  return new UserSyncService(new PrismaIdentityRepository(prisma));
+  return new UserSyncService(new PrismaIdentityRepository(prisma), new WorkosAuthDirectory());
 }
