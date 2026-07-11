@@ -1,6 +1,6 @@
 /** Shared client/server display formatting. */
 
-const numberFmt = new Intl.NumberFormat('en-US');
+const numberFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 const dateFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const dateTimeFmt = new Intl.DateTimeFormat('en-US', {
   month: 'short',

@@ -29,9 +29,10 @@ import { InventoryItemDialog } from './inventory-item-dialog';
 const ALL = 'all';
 
 export function InventoryView() {
-  const { can } = useMe();
+  const { me, can } = useMe();
   const canManage = can(Permission.InventoryManage);
   const canMove = can(Permission.MovementsCreate);
+  const isOperator = me?.role === 'OPERATOR';
   const { warehouses } = useWarehouseOptions();
   const list = usePaginated<InventoryRow>('/api/v1/inventory', { sortBy: 'sku' });
 
@@ -47,7 +48,7 @@ export function InventoryView() {
       { field: 'warehouseName', headerName: 'Warehouse', minWidth: 170, sortable: false },
       {
         field: 'quantity',
-        headerName: 'On hand',
+        headerName: 'Qty',
         type: 'rightAligned',
         valueFormatter: (p) => formatNumber(p.value ?? 0),
         cellClass: (p) => ((p.value ?? 0) === 0 ? 'text-muted-foreground' : ''),
@@ -129,7 +130,11 @@ export function InventoryView() {
           onValueChange={(v) => list.setFilter('warehouseId', !v || v === ALL ? '' : v)}
         >
           <SelectTrigger className="w-52 bg-card">
-            <SelectValue placeholder="All warehouses" />
+            <SelectValue placeholder="All warehouses">
+              {(v: string) =>
+                v === ALL ? 'All warehouses' : (warehouses.find((w) => w.id === v)?.name ?? 'All warehouses')
+              }
+            </SelectValue>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value={ALL}>All warehouses</SelectItem>
@@ -168,6 +173,7 @@ export function InventoryView() {
         open={creating || editing !== null}
         item={editing}
         warehouses={warehouses}
+        isOperator={isOperator}
         onOpenChange={(open) => {
           if (!open) {
             setCreating(false);

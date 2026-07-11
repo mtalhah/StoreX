@@ -29,7 +29,18 @@
       "Bash(node -e \"const {getWorkOS}=require\\('@workos-inc/authkit-nextjs'\\); const w=getWorkOS\\(\\); console.log\\('organizations:', typeof w.organizations, 'createOrganization:', typeof w.organizations.createOrganization\\);\")",
       "Bash(npx prisma *)",
       "Bash(npm run *)",
-      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)"
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000/)",
+      "Bash(xargs grep -l -i \"select\")",
+      "Bash(find prisma *)",
+      "Bash(ls prisma *)",
+      "Skill(run)",
+      "Skill(run:*)",
+      "Bash(xargs -I{} sh -c 'echo ==={}===; head -5 \"{}\"')",
+      "Bash(xargs grep -l \"getWorkOSBaseURL\\\\|x-forwarded-host\\\\|baseURL\\\\|getBaseURL\\\\|redirectUri\\\\|forwarded\")",
+      "Bash(gcloud config *)",
+      "Bash(gcloud auth *)",
+      "PowerShell(gcloud config get-value project)",
+      "PowerShell(gcloud auth list --format=\"value\\(account\\)\")"
     ]
   }
 }

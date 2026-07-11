@@ -31,6 +31,7 @@ export function InsightsGrid() {
     swrFetcher<InventoryInsightRow[]>,
     { refreshInterval: 60_000 },
   );
+  const rows = data?.data ?? [];
 
   const columnDefs = useMemo<ColDef<InventoryInsightRow>[]>(
     () => [
@@ -74,13 +75,15 @@ export function InsightsGrid() {
     [],
   );
 
+  if (!isLoading && rows.length === 0) return null;
+
   return (
     <Card className="flex h-full flex-col gap-2 rounded-xl py-4 shadow-xs">
       <CardHeader className="px-5 py-0">
         <CardTitle className="text-sm font-medium">Inventory insights</CardTitle>
       </CardHeader>
       <CardContent className="min-h-0 flex-1 px-4 pb-1">
-        <DataGrid columnDefs={columnDefs} rows={data?.data ?? []} loading={isLoading} />
+        <DataGrid columnDefs={columnDefs} rows={rows} loading={isLoading} />
       </CardContent>
     </Card>
   );

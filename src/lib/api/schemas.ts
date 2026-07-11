@@ -108,11 +108,15 @@ export const inventoryUpdateSchema = z
 export const movementListSchema = paginationSchema.extend({
   sortBy: z.enum(['occurredAt', 'quantity', 'type']).default('occurredAt'),
   sortDir: sortDirSchema.default('desc'),
+  search: z.string().trim().min(1).max(120).optional(),
   warehouseId: z.string().min(1).optional(),
   inventoryItemId: z.string().min(1).optional(),
   type: z.enum(MOVEMENT_TYPES).optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
+  quantityMin: z.coerce.number().int().min(0).optional(),
+  quantityMax: z.coerce.number().int().min(0).optional(),
+  recordedBy: z.string().trim().min(1).max(120).optional(),
 });
 
 export const movementCreateSchema = z.object({

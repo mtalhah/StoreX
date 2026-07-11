@@ -1,5 +1,6 @@
 'use client';
 
+import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import {
@@ -52,6 +53,7 @@ export function ConfirmDialog({
               }
             }}
           >
+            {busy && <Loader2 className="size-4 animate-spin" />}
             {busy ? 'Working…' : confirmLabel}
           </Button>
         </DialogFooter>

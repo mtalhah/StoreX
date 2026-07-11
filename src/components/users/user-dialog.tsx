@@ -1,5 +1,6 @@
 'use client';
 
+import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
 import { Button } from '@/components/ui/button';
@@ -11,6 +12,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { FieldError } from '@/components/ui/field-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
@@ -22,9 +24,12 @@ import {
 } from '@/components/ui/select';
 import type { UserRole } from '@/core/domain/enums';
 import { apiFetch, ApiError } from '@/lib/client/api';
+import { useFieldErrors } from '@/lib/client/validation';
 import type { UserRow } from '@/lib/client/types';
 import { ROLE_LABELS } from '@/lib/format';
 import { cn } from '@/lib/utils';
+
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /**
  * Invite/edit dialog. Assignment rules come from the server (operators:
@@ -88,6 +93,7 @@ function UserForm({
   );
   const [isActive, setIsActive] = useState(user?.isActive ?? true);
   const [busy, setBusy] = useState(false);
+  const { errors, setErrors, clearErrors, applyApiError } = useFieldErrors();
 
   const toggleWarehouse = (id: string) => {
     setSelectedWarehouses((prev) => {
@@ -96,8 +102,25 @@ function UserForm({
     });
   };
 
+  const needsWarehouses = role !== 'ADMIN';
+
+  const validate = (): boolean => {
+    const next: Record<string, string> = {};
+    if (!isEdit) {
+      if (!email.trim()) next.email = 'Email is required.';
+      else if (!EMAIL_PATTERN.test(email.trim())) next.email = 'Enter a valid email address.';
+    }
+    if (needsWarehouses && selectedWarehouses.length === 0) {
+      next.warehouses = 'Select at least one warehouse.';
+    }
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
+
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
+    clearErrors();
+    if (!validate()) return;
     setBusy(true);
     try {
       const warehouseIds = role === 'ADMIN' ? [] : selectedWarehouses;
@@ -135,13 +158,13 @@ function UserForm({
       onSaved();
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Something went wrong.');
+      if (!applyApiError(err)) {
+        toast.error(err instanceof ApiError ? err.message : 'Something went wrong.');
+      }
     } finally {
       setBusy(false);
     }
   };
-
-  const needsWarehouses = role !== 'ADMIN';
 
   return (
     <>
@@ -162,8 +185,9 @@ function UserForm({
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              required
+              aria-invalid={!!errors.email}
             />
+            <FieldError message={errors.email} />
           </div>
         )}
         <div className="grid grid-cols-2 gap-3">
@@ -189,7 +213,7 @@ function UserForm({
             disabled={isSelf}
           >
             <SelectTrigger className="w-full">
-              <SelectValue />
+              <SelectValue>{(v: UserRole) => ROLE_LABELS[v]}</SelectValue>
             </SelectTrigger>
             <SelectContent>
               {(['ADMIN', 'MANAGER', 'OPERATOR'] as const).map((r) => (
@@ -240,6 +264,7 @@ function UserForm({
                 );
               })}
             </div>
+            <FieldError message={errors.warehouses} />
           </div>
         )}
         {isEdit && !isSelf && (
@@ -250,7 +275,9 @@ function UserForm({
               onValueChange={(v) => v && setIsActive(v === 'active')}
             >
               <SelectTrigger className="w-full">
-                <SelectValue />
+                <SelectValue>
+                  {(v: string) => (v === 'active' ? 'Active' : 'Deactivated — sign-in blocked')}
+                </SelectValue>
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="active">Active</SelectItem>
@@ -263,10 +290,8 @@ function UserForm({
           <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button
-            type="submit"
-            disabled={busy || (needsWarehouses && selectedWarehouses.length === 0)}
-          >
+          <Button type="submit" disabled={busy}>
+            {busy && <Loader2 className="size-4 animate-spin" />}
             {busy ? 'Saving…' : isEdit ? 'Save changes' : 'Send invite'}
           </Button>
         </DialogFooter>

@@ -14,11 +14,17 @@ export type MovementSortField = 'occurredAt' | 'quantity' | 'type';
 export interface MovementListQuery extends PageParams {
   sortBy: MovementSortField;
   sortDir: SortDir;
+  /** Matches the movement's SKU or item name (contains, case-insensitive). */
+  search?: string;
   warehouseId?: string;
   inventoryItemId?: string;
   type?: MovementType;
   from?: Date;
   to?: Date;
+  quantityMin?: number;
+  quantityMax?: number;
+  /** Matches the recording user's name or email (contains, case-insensitive). */
+  recordedBy?: string;
 }
 
 export interface RecordMovementData {

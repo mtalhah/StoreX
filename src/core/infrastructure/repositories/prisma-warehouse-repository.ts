@@ -36,14 +36,7 @@ export class PrismaWarehouseRepository implements WarehouseRepository {
     const where: Prisma.WarehouseWhereInput = {
       AND: [
         this.scopedWhere,
-        query.search
-          ? {
-              OR: [
-                { name: { contains: query.search, mode: 'insensitive' } },
-                { location: { contains: query.search, mode: 'insensitive' } },
-              ],
-            }
-          : {},
+        query.search ? { name: { startsWith: query.search, mode: 'insensitive' } } : {},
       ],
     };
 

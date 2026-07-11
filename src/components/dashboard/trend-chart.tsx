@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { MovementTrendPoint } from '@/core/application/ports/analytics-repository';
 import { swrFetcher, type ApiResult } from '@/lib/client/api';
+import { formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
 
 const INBOUND = 'var(--chart-1)';
@@ -79,9 +80,11 @@ export function TrendChart({ className }: { className?: string }) {
                 axisLine={false}
                 width={52}
                 tick={{ fontSize: 11, fill: 'var(--muted-foreground)' }}
+                tickFormatter={(value: number) => formatNumber(value)}
               />
               <Tooltip
                 cursor={{ stroke: 'var(--border)' }}
+                formatter={(value) => formatNumber(Number(value))}
                 contentStyle={{
                   borderRadius: 10,
                   border: '1px solid var(--border)',

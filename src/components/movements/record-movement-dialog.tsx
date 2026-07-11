@@ -1,9 +1,20 @@
 'use client';
 
-import { useState } from 'react';
+import { Loader2 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
+import {
+  Combobox,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxInput,
+  ComboboxInputGroup,
+  ComboboxItem,
+  ComboboxList,
+  ComboboxTrigger,
+} from '@/components/ui/combobox';
 import {
   Dialog,
   DialogContent,
@@ -12,25 +23,26 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { FieldError } from '@/components/ui/field-error';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { apiFetch, ApiError, swrFetcher, type ApiResult } from '@/lib/client/api';
+import { useFieldErrors } from '@/lib/client/validation';
 import type { InventoryRow } from '@/lib/client/types';
 import { formatNumber } from '@/lib/format';
+
+interface ItemOption {
+  value: string;
+  label: string;
+}
 
 /**
  * The single UI entry point for changing stock levels — mirrors the domain
  * rule that quantities only move through recorded stock movements.
  * When `item` is provided the item selector is hidden (row-level action);
- * otherwise the user picks an item first.
+ * otherwise the user picks an item first, searching a dropdown of every
+ * accessible item rather than a fixed preset list.
  */
 export function RecordMovementDialog({
   open,
@@ -69,18 +81,43 @@ function MovementForm({
   const [quantity, setQuantity] = useState('');
   const [note, setNote] = useState('');
   const [busy, setBusy] = useState(false);
+  const { errors, setErrors, clearErrors, applyApiError } = useFieldErrors();
 
   // Item picker data, only fetched when no item was preselected.
   const { data: itemsData } = useSWR<ApiResult<InventoryRow[]>>(
     item ? null : '/api/v1/inventory?page=1&pageSize=100&sortBy=sku&sortDir=asc',
     swrFetcher<InventoryRow[]>,
   );
-  const selectableItems = itemsData?.data ?? [];
+  const selectableItems = useMemo(() => itemsData?.data ?? [], [itemsData]);
   const selected = item ?? selectableItems.find((i) => i.id === itemId) ?? null;
+
+  const itemOptions = useMemo<ItemOption[]>(
+    () =>
+      selectableItems.map((i) => ({
+        value: i.id,
+        label: `${i.sku} · ${i.name} (${i.warehouseName})`,
+      })),
+    [selectableItems],
+  );
+  const selectedOption = itemOptions.find((o) => o.value === itemId) ?? null;
+
+  const validate = (): boolean => {
+    const next: Record<string, string> = {};
+    if (!selected) next.item = 'Choose an item to move.';
+    const qty = Number(quantity);
+    if (!quantity.trim() || !Number.isInteger(qty) || qty <= 0) {
+      next.quantity = 'Quantity must be a positive whole number.';
+    } else if (type === 'OUTBOUND' && selected && qty > selected.quantity) {
+      next.quantity = `Only ${formatNumber(selected.quantity)} units available.`;
+    }
+    setErrors(next);
+    return Object.keys(next).length === 0;
+  };
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!selected) return;
+    clearErrors();
+    if (!validate() || !selected) return;
     setBusy(true);
     try {
       await apiFetch('/api/v1/movements', {
@@ -98,7 +135,9 @@ function MovementForm({
       onSaved();
       onOpenChange(false);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to record movement.');
+      if (!applyApiError(err)) {
+        toast.error(err instanceof ApiError ? err.message : 'Failed to record movement.');
+      }
     } finally {
       setBusy(false);
     }
@@ -118,18 +157,30 @@ function MovementForm({
         {!item && (
           <div className="space-y-2">
             <Label>Item</Label>
-            <Select value={itemId} onValueChange={(v) => setItemId(v ?? '')}>
-              <SelectTrigger className="w-full">
-                <SelectValue placeholder="Select an item" />
-              </SelectTrigger>
-              <SelectContent>
-                {selectableItems.map((i) => (
-                  <SelectItem key={i.id} value={i.id}>
-                    {i.sku} · {i.name} ({i.warehouseName})
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            <Combobox
+              items={itemOptions}
+              value={selectedOption}
+              onValueChange={(v) => setItemId((v as ItemOption | null)?.value ?? '')}
+            >
+              <ComboboxInputGroup>
+                <ComboboxInput
+                  placeholder="Search by SKU or name…"
+                  aria-invalid={!!errors.item}
+                />
+                <ComboboxTrigger />
+              </ComboboxInputGroup>
+              <ComboboxContent>
+                <ComboboxEmpty>No items found.</ComboboxEmpty>
+                <ComboboxList>
+                  {(option: ItemOption) => (
+                    <ComboboxItem key={option.value} value={option}>
+                      {option.label}
+                    </ComboboxItem>
+                  )}
+                </ComboboxList>
+              </ComboboxContent>
+            </Combobox>
+            <FieldError message={errors.item} />
           </div>
         )}
         <div className="space-y-2">
@@ -151,12 +202,12 @@ function MovementForm({
             id="mv-qty"
             type="number"
             min={1}
-            max={type === 'OUTBOUND' && selected ? selected.quantity : undefined}
             value={quantity}
             onChange={(e) => setQuantity(e.target.value)}
-            required
+            aria-invalid={!!errors.quantity}
           />
-          {type === 'OUTBOUND' && selected && (
+          <FieldError message={errors.quantity} />
+          {type === 'OUTBOUND' && selected && !errors.quantity && (
             <p className="text-xs text-muted-foreground">
               Up to {formatNumber(selected.quantity)} units available.
             </p>
@@ -176,7 +227,8 @@ function MovementForm({
           <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
             Cancel
           </Button>
-          <Button type="submit" disabled={busy || !selected}>
+          <Button type="submit" disabled={busy}>
+            {busy && <Loader2 className="size-4 animate-spin" />}
             {busy ? 'Recording…' : 'Record movement'}
           </Button>
         </DialogFooter>

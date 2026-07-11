@@ -105,6 +105,7 @@ export class WorkosAuthDirectory implements AuthDirectory {
    */
   private degrade<T>(error: unknown, action: string, fallback: T): T {
     if (isProduction()) {
+      console.error(`[workos] Failed to ${action}; failing the request.`, error);
       throw new Error(`Failed to ${action}.`, { cause: error });
     }
     console.warn(`[workos] Failed to ${action}; continuing without it (local/dev).`, error);

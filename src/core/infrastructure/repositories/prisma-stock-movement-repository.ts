@@ -48,14 +48,48 @@ export class PrismaStockMovementRepository implements StockMovementRepository {
   }
 
   async findMany(query: MovementListQuery): Promise<Paginated<StockMovementWithRelations>> {
+    // `to` is a calendar date (midnight); treat it as inclusive of that whole day.
+    const toInclusive = query.to
+      ? new Date(query.to.getTime() + 24 * 60 * 60 * 1000 - 1)
+      : undefined;
+
     const where: Prisma.StockMovementWhereInput = {
       AND: [
         this.scopedWhere,
         query.warehouseId ? { warehouseId: query.warehouseId } : {},
         query.inventoryItemId ? { inventoryItemId: query.inventoryItemId } : {},
         query.type ? { type: query.type } : {},
-        query.from || query.to
-          ? { occurredAt: { ...(query.from && { gte: query.from }), ...(query.to && { lte: query.to }) } }
+        query.from || toInclusive
+          ? { occurredAt: { ...(query.from && { gte: query.from }), ...(toInclusive && { lte: toInclusive }) } }
+          : {},
+        query.quantityMin !== undefined || query.quantityMax !== undefined
+          ? {
+              quantity: {
+                ...(query.quantityMin !== undefined && { gte: query.quantityMin }),
+                ...(query.quantityMax !== undefined && { lte: query.quantityMax }),
+              },
+            }
+          : {},
+        query.search
+          ? {
+              inventoryItem: {
+                OR: [
+                  { sku: { contains: query.search, mode: 'insensitive' } },
+                  { name: { contains: query.search, mode: 'insensitive' } },
+                ],
+              },
+            }
+          : {},
+        query.recordedBy
+          ? {
+              createdBy: {
+                OR: [
+                  { firstName: { contains: query.recordedBy, mode: 'insensitive' } },
+                  { lastName: { contains: query.recordedBy, mode: 'insensitive' } },
+                  { email: { contains: query.recordedBy, mode: 'insensitive' } },
+                ],
+              },
+            }
           : {},
       ],
     };

@@ -49,7 +49,7 @@ export function DashboardView({ scopeLabel }: { scopeLabel: string }) {
         />
         <KpiCard
           label="Movement velocity"
-          value={`${kpis?.movementVelocity30d ?? 0}/day`}
+          value={`${formatNumber(kpis?.movementVelocity30d ?? 0)}/day`}
           hint="Average over the last 30 days"
           icon={ArrowUpFromLine}
           loading={isLoading}
