@@ -40,7 +40,10 @@
       "Bash(gcloud config *)",
       "Bash(gcloud auth *)",
       "PowerShell(gcloud config get-value project)",
-      "PowerShell(gcloud auth list --format=\"value\\(account\\)\")"
+      "PowerShell(gcloud auth list --format=\"value\\(account\\)\")",
+      "WebFetch(domain:storex-361166934285.us-central1.run.app)",
+      "Bash(npx tsc *)",
+      "Bash(echo \"EXIT: $?\")"
     ]
   }
 }

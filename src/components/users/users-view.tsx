@@ -129,23 +129,23 @@ export function UsersView({ currentUserId }: { currentUserId: string }) {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 p-6">
+    <div className="flex h-full min-h-0 flex-col gap-4 p-4 md:p-6">
       <PageHeader
         title="Users"
         description="Provision teammates and control their warehouse access."
       >
         <Input
           placeholder="Search users…"
-          className="w-56 bg-card"
+          className="w-full bg-card sm:w-56"
           value={list.state.search}
           onChange={(e) => list.setSearch(e.target.value)}
         />
-        <Button onClick={() => setCreating(true)}>
+        <Button className="w-full sm:w-auto" onClick={() => setCreating(true)}>
           <Plus className="size-4" /> Invite user
         </Button>
       </PageHeader>
 
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 min-w-0 flex-1">
         <DataGrid
           columnDefs={columnDefs}
           rows={list.items}

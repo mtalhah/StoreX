@@ -25,13 +25,16 @@ export function DashboardView({ scopeLabel }: { scopeLabel: string }) {
   const kpis = data?.data;
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 p-6">
+    // Desktop (lg+) keeps the original viewport-fit layout (fixed height,
+    // internal scrolling). Below lg the dashboard flows to its natural height
+    // and the page scrolls, so nothing gets crushed on a phone.
+    <div className="flex min-h-full flex-col gap-4 p-4 md:p-6 lg:h-full lg:min-h-0">
       <PageHeader
         title="Dashboard"
         description={`Analytics for your ${scopeLabel} — served from BigQuery.`}
       />
 
-      <div className="grid shrink-0 grid-cols-2 gap-4 xl:grid-cols-4">
+      <div className="grid shrink-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
           label="Units on hand"
           value={formatNumber(kpis?.totalStockUnits ?? 0)}
@@ -68,12 +71,14 @@ export function DashboardView({ scopeLabel }: { scopeLabel: string }) {
         />
       </div>
 
-      <div className="grid h-[240px] shrink-0 grid-cols-1 gap-4 lg:grid-cols-3">
-        <TrendChart className="lg:col-span-2" />
-        <UtilizationPanel />
+      <div className="grid shrink-0 grid-cols-1 gap-4 lg:h-[240px] lg:grid-cols-3">
+        <TrendChart className="h-[280px] lg:col-span-2 lg:h-full" />
+        <UtilizationPanel className="h-[280px] lg:h-full" />
       </div>
 
-      <div className="min-h-0 flex-1">
+      {/* Fixed, internally-scrolling height on phones/tablets; fills the
+          remaining viewport on desktop exactly as before. */}
+      <div className="h-[70vh] min-h-[420px] lg:h-auto lg:min-h-0 lg:flex-1">
         <InsightsGrid />
       </div>
     </div>

@@ -123,13 +123,13 @@ export function InventoryView() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 p-6">
+    <div className="flex h-full min-h-0 flex-col gap-4 p-4 md:p-6">
       <PageHeader title="Inventory" description="Stock on hand across your warehouses.">
         <Select
           value={list.state.filters.warehouseId || ALL}
           onValueChange={(v) => list.setFilter('warehouseId', !v || v === ALL ? '' : v)}
         >
-          <SelectTrigger className="w-52 bg-card">
+          <SelectTrigger className="w-full bg-card sm:w-52">
             <SelectValue placeholder="All warehouses">
               {(v: string) =>
                 v === ALL ? 'All warehouses' : (warehouses.find((w) => w.id === v)?.name ?? 'All warehouses')
@@ -147,18 +147,18 @@ export function InventoryView() {
         </Select>
         <Input
           placeholder="Search SKU or name…"
-          className="w-56 bg-card"
+          className="w-full bg-card sm:w-56"
           value={list.state.search}
           onChange={(e) => list.setSearch(e.target.value)}
         />
         {canManage && (
-          <Button onClick={() => setCreating(true)}>
+          <Button className="w-full sm:w-auto" onClick={() => setCreating(true)}>
             <Plus className="size-4" /> New item
           </Button>
         )}
       </PageHeader>
 
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 min-w-0 flex-1">
         <DataGrid
           columnDefs={columnDefs}
           rows={list.items}

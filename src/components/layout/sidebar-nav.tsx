@@ -26,7 +26,14 @@ export interface NavItem {
   icon: keyof typeof ICONS;
 }
 
-export function SidebarNav({ items }: { items: NavItem[] }) {
+export function SidebarNav({
+  items,
+  onNavigate,
+}: {
+  items: NavItem[];
+  /** Called when a nav item is activated — used to close the mobile drawer. */
+  onNavigate?: () => void;
+}) {
   const pathname = usePathname();
 
   return (
@@ -38,6 +45,7 @@ export function SidebarNav({ items }: { items: NavItem[] }) {
           <Link
             key={item.href}
             href={item.href}
+            onClick={onNavigate}
             className={cn(
               'flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
               active

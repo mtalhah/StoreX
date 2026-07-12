@@ -147,16 +147,16 @@ export function MovementsView() {
   );
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 p-6">
+    <div className="flex h-full min-h-0 flex-col gap-4 p-4 md:p-6">
       <PageHeader title="Stock movements" description="The immutable ledger behind every quantity.">
         <Input
           placeholder="Search SKU or item…"
-          className="w-56 bg-card"
+          className="w-full bg-card sm:w-56"
           value={list.state.search}
           onChange={(e) => list.setSearch(e.target.value)}
         />
         <Popover open={filtersOpen} onOpenChange={openFilters}>
-          <PopoverTrigger render={<Button variant="outline" className="gap-1.5 bg-card" />}>
+          <PopoverTrigger render={<Button variant="outline" className="w-full gap-1.5 bg-card sm:w-auto" />}>
             <Filter className="size-4" />
             Filters
             {activeFilterCount > 0 && (
@@ -165,7 +165,7 @@ export function MovementsView() {
               </span>
             )}
           </PopoverTrigger>
-          <PopoverContent className="w-80" align="start">
+          <PopoverContent className="w-80 max-w-[calc(100vw-2rem)]" align="start">
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-2">
                 <div className="space-y-1.5">
@@ -271,13 +271,13 @@ export function MovementsView() {
           </PopoverContent>
         </Popover>
         {can(Permission.MovementsCreate) && (
-          <Button onClick={() => setRecording(true)}>
+          <Button className="w-full sm:w-auto" onClick={() => setRecording(true)}>
             <Plus className="size-4" /> Record movement
           </Button>
         )}
       </PageHeader>
 
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 min-w-0 flex-1">
         <DataGrid
           columnDefs={columnDefs}
           rows={list.items}

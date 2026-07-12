@@ -98,22 +98,22 @@ export function WarehousesView() {
   };
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-4 p-6">
+    <div className="flex h-full min-h-0 flex-col gap-4 p-4 md:p-6">
       <PageHeader title="Warehouses" description="Locations, storage capacity, and current utilization.">
         <Input
           placeholder="Search warehouses…"
-          className="w-56 bg-card"
+          className="w-full bg-card sm:w-56"
           value={list.state.search}
           onChange={(e) => list.setSearch(e.target.value)}
         />
         {canManage && (
-          <Button onClick={() => setCreating(true)}>
+          <Button className="w-full sm:w-auto" onClick={() => setCreating(true)}>
             <Plus className="size-4" /> New warehouse
           </Button>
         )}
       </PageHeader>
 
-      <div className="min-h-0 flex-1">
+      <div className="min-h-0 min-w-0 flex-1">
         <DataGrid
           columnDefs={columnDefs}
           rows={list.items}

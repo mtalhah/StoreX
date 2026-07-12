@@ -8,7 +8,7 @@ import { swrFetcher, type ApiResult } from '@/lib/client/api';
 import { cn } from '@/lib/utils';
 import { formatNumber, formatPercent } from '@/lib/format';
 
-export function UtilizationPanel() {
+export function UtilizationPanel({ className }: { className?: string }) {
   const { data, isLoading } = useSWR<ApiResult<WarehouseUtilizationRow[]>>(
     '/api/v1/analytics/utilization',
     swrFetcher<WarehouseUtilizationRow[]>,
@@ -17,7 +17,7 @@ export function UtilizationPanel() {
   const rows = data?.data ?? [];
 
   return (
-    <Card className="flex h-full flex-col gap-2 rounded-xl py-4 shadow-xs">
+    <Card className={cn('flex h-full flex-col gap-2 rounded-xl py-4 shadow-xs', className)}>
       <CardHeader className="px-5 py-0">
         <CardTitle className="text-sm font-medium">Warehouse utilization</CardTitle>
       </CardHeader>
