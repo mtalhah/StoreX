@@ -1,14 +1,22 @@
-# Cloud Build pipeline: build → push to Artifact Registry → migrate → deploy.
+# Cloud Build pipeline: build → push to Artifact Registry → deploy Cloud Run
+# → run migrations as a Cloud Run Job.
+#
+# Migrations do NOT run inside Cloud Build. Cloud Build has no Cloud SQL
+# connector, so a `/cloudsql/...` unix socket never exists in a build step's
+# container. Instead, `prisma migrate deploy` runs inside a Cloud Run Job
+# (storex-migrate), which gets the same Cloud SQL + Secret Manager wiring as
+# the Cloud Run service itself.
 #
 # One-time setup is documented in infra/gcp/setup.sh. Trigger this with:
 #   gcloud builds submit --config cloudbuild.yaml \
 #     --substitutions=_REGION=europe-west1,_SERVICE=storex,_SQL_INSTANCE=PROJECT:REGION:storex-pg
 
 substitutions:
-  _REGION: europe-west1
+  _REGION: us-central1
   _REPOSITORY: storex
   _SERVICE: storex
-  _SQL_INSTANCE: '' # PROJECT:REGION:INSTANCE
+  _JOB: storex-migrate
+  _SQL_INSTANCE: 'storex-501914:us-central1:storex-db'
 
 steps:
   # 1. Build the production image
@@ -16,8 +24,6 @@ steps:
     id: build
     args:
       - build
-      - -t
-      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$COMMIT_SHA
       - -t
       - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:latest
       - .
@@ -27,18 +33,9 @@ steps:
     id: push
     args:
       - push
-      - --all-tags
-      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}
+      - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:latest
 
-  # 3. Run database migrations against Cloud SQL (release phase).
-  #    Uses the just-built image, which carries prisma/ and the CLI.
-  - name: ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$COMMIT_SHA
-    id: migrate
-    entrypoint: npx
-    args: ['prisma', 'migrate', 'deploy']
-    secretEnv: ['DATABASE_URL']
-
-  # 4. Deploy to Cloud Run
+  # 3. Deploy to Cloud Run
   - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
     id: deploy
     entrypoint: gcloud
@@ -46,25 +43,54 @@ steps:
       - run
       - deploy
       - ${_SERVICE}
-      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$COMMIT_SHA
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:latest
       - --region=${_REGION}
       - --platform=managed
       - --allow-unauthenticated
+      - --service-account=${PROJECT_NUMBER}-compute@developer.gserviceaccount.com
       - --add-cloudsql-instances=${_SQL_INSTANCE}
       - --set-env-vars=ANALYTICS_SOURCE=bigquery,GCP_PROJECT_ID=$PROJECT_ID,BIGQUERY_DATASET=storex_analytics
-      - --set-secrets=DATABASE_URL=storex-database-url:latest,WORKOS_API_KEY=storex-workos-api-key:latest,WORKOS_CLIENT_ID=storex-workos-client-id:latest,WORKOS_COOKIE_PASSWORD=storex-workos-cookie-password:latest,WORKOS_REDIRECT_URI=storex-workos-redirect-uri:latest
+      - --set-secrets=DATABASE_URL=DATABASE_URL:latest,WORKOS_API_KEY=WORKOS_API_KEY:latest,WORKOS_CLIENT_ID=WORKOS_CLIENT_ID:latest,WORKOS_COOKIE_PASSWORD=WORKOS_COOKIE_PASSWORD:latest,WORKOS_REDIRECT_URI=WORKOS_REDIRECT_URI:latest
       - --min-instances=0
       - --max-instances=4
       - --memory=1Gi
       - --cpu=1
 
-availableSecrets:
-  secretManager:
-    - versionName: projects/$PROJECT_ID/secrets/storex-database-url/versions/latest
-      env: DATABASE_URL
+  # 4. Create/update the migration job definition (same image, same SA,
+  #    same Cloud SQL + Secret Manager wiring as the service).
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: deploy-migrate-job
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - deploy
+      - ${_JOB}
+      - --image=${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:latest
+      - --region=${_REGION}
+      - --service-account=${PROJECT_NUMBER}-compute@developer.gserviceaccount.com
+      - --set-cloudsql-instances=${_SQL_INSTANCE}
+      - --set-secrets=DATABASE_URL=DATABASE_URL:latest
+      - --command=node
+      - --args=node_modules/prisma/build/index.js,migrate,deploy
+      - --max-retries=0
+      - --task-timeout=600
+
+  # 5. Run the job and block until it finishes. Non-zero exit here fails
+  #    the whole build.
+  - name: gcr.io/google.com/cloudsdktool/cloud-sdk:slim
+    id: run-migrate-job
+    entrypoint: gcloud
+    args:
+      - run
+      - jobs
+      - execute
+      - ${_JOB}
+      - --region=${_REGION}
+      - --wait
 
 images:
-  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:$COMMIT_SHA
+  - ${_REGION}-docker.pkg.dev/$PROJECT_ID/${_REPOSITORY}/${_SERVICE}:latest
 
 options:
   logging: CLOUD_LOGGING_ONLY

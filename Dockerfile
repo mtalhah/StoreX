@@ -47,6 +47,14 @@ COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/prisma ./prisma
 COPY --from=builder --chown=nextjs:nodejs /app/prisma.config.ts ./prisma.config.ts
 
+# Prisma CLI itself (a devDependency, not part of the standalone runtime
+# trace) so `node node_modules/prisma/build/index.js migrate deploy` resolves
+# locally instead of trying to fetch it from npm at release time. (Invoked via
+# the real script path, not the node_modules/.bin/prisma symlink — Docker
+# COPY dereferences that symlink into a standalone file, which breaks the
+# CLI's lookup of its sibling prisma_schema_build_bg.wasm asset.)
+COPY --from=deps --chown=nextjs:nodejs /app/node_modules ./node_modules
+
 USER nextjs
 EXPOSE 8080
 
