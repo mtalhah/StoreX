@@ -8,11 +8,22 @@ export interface UserWithAssignments extends User {
 
 export type UserSortField = 'email' | 'role' | 'createdAt';
 
+/**
+ * Derived account status, not a stored column — computed from
+ * isActive/workosUserId/invitationStatus the same way the Users table badge
+ * does (see UsersView). Filtering on it means replicating that derivation in
+ * the repository's WHERE clause.
+ */
+export const USER_STATUS_FILTERS = ['ACTIVE', 'DEACTIVATED', 'INVITED', 'INVITE_NOT_SENT'] as const;
+export type UserStatusFilter = (typeof USER_STATUS_FILTERS)[number];
+
 export interface UserListQuery extends PageParams {
   sortBy: UserSortField;
   sortDir: SortDir;
   search?: string;
   role?: UserRole;
+  warehouseId?: string;
+  status?: UserStatusFilter;
 }
 
 /** What the route/API supplies when an admin provisions a user. */

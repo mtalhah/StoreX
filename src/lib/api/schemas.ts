@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { MOVEMENT_TYPES, USER_ROLES } from '@/core/domain/enums';
+import { USER_STATUS_FILTERS } from '@/core/application/ports/user-repository';
 
 /** Zod schemas for query strings and request bodies (API boundary only). */
 
@@ -133,6 +134,8 @@ export const userListSchema = paginationSchema.extend({
   sortDir: sortDirSchema.default('asc'),
   search: z.string().trim().min(1).max(120).optional(),
   role: z.enum(USER_ROLES).optional(),
+  warehouseId: z.string().min(1).optional(),
+  status: z.enum(USER_STATUS_FILTERS).optional(),
 });
 
 export const userCreateSchema = z.object({

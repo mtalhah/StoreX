@@ -34,7 +34,7 @@ export function DashboardView({ scopeLabel }: { scopeLabel: string }) {
         description={`Analytics for your ${scopeLabel} — served from BigQuery.`}
       />
 
-      <div className="grid shrink-0 grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid shrink-0 grid-cols-2 gap-4 xl:grid-cols-4">
         <KpiCard
           label="Units on hand"
           value={formatNumber(kpis?.totalStockUnits ?? 0)}

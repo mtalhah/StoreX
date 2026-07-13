@@ -9,10 +9,29 @@ import type {
   UpdateUserData,
   UserListQuery,
   UserRepository,
+  UserStatusFilter,
   UserWithAssignments,
 } from '@/core/application/ports/user-repository';
 import { ConflictError } from '@/core/domain/errors';
 import { isForeignKeyViolation, isUniqueConstraintViolation } from './prisma-errors';
+
+/** Mirrors the derived status badge in UsersView so filtering matches what's displayed. */
+function statusWhere(status: UserStatusFilter): Prisma.UserWhereInput {
+  switch (status) {
+    case 'DEACTIVATED':
+      return { isActive: false };
+    case 'ACTIVE':
+      return { isActive: true, workosUserId: { not: null } };
+    case 'INVITE_NOT_SENT':
+      return { isActive: true, workosUserId: null, invitationStatus: 'SKIPPED' };
+    case 'INVITED':
+      return {
+        isActive: true,
+        workosUserId: null,
+        OR: [{ invitationStatus: null }, { invitationStatus: { not: 'SKIPPED' } }],
+      };
+  }
+}
 
 const userInclude = {
   warehouseAssignments: { include: { warehouse: { select: { id: true, name: true } } } },
@@ -42,6 +61,8 @@ export class PrismaUserRepository implements UserRepository {
       AND: [
         this.scopedWhere,
         query.role ? { role: query.role } : {},
+        query.warehouseId ? { warehouseAssignments: { some: { warehouseId: query.warehouseId } } } : {},
+        query.status ? statusWhere(query.status) : {},
         query.search
           ? {
               OR: [

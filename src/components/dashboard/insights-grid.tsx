@@ -1,13 +1,15 @@
 'use client';
 
-import type { ColDef } from 'ag-grid-community';
+import type { ColDef, RowClickedEvent } from 'ag-grid-community';
 import useSWR from 'swr';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { DataGrid } from '@/components/data-grid';
+import { RowDetailsDialog } from '@/components/row-details-dialog';
 import type { InventoryInsightRow, StockStatus } from '@/core/application/ports/analytics-repository';
 import { swrFetcher, type ApiResult } from '@/lib/client/api';
+import { useIsMobile } from '@/lib/client/use-is-mobile';
 import { formatDateTime, formatNumber, STATUS_LABELS } from '@/lib/format';
 
 const STATUS_STYLES: Record<StockStatus, string> = {
@@ -26,6 +28,7 @@ function StatusBadge({ value }: { value: StockStatus }) {
 }
 
 export function InsightsGrid() {
+  const isMobile = useIsMobile();
   const { data, isLoading } = useSWR<ApiResult<InventoryInsightRow[]>>(
     '/api/v1/analytics/insights',
     swrFetcher<InventoryInsightRow[]>,
@@ -33,8 +36,22 @@ export function InsightsGrid() {
   );
   const rows = data?.data ?? [];
 
-  const columnDefs = useMemo<ColDef<InventoryInsightRow>[]>(
-    () => [
+  const [viewing, setViewing] = useState<InventoryInsightRow | null>(null);
+
+  const columnDefs = useMemo<ColDef<InventoryInsightRow>[]>(() => {
+    if (isMobile) {
+      return [
+        { field: 'warehouseName', headerName: 'Warehouse', minWidth: 130, flex: 1 },
+        { field: 'itemName', headerName: 'Item', minWidth: 130, flex: 1 },
+        {
+          field: 'status',
+          headerName: 'Status',
+          minWidth: 110,
+          cellRenderer: (p: { value: StockStatus }) => <StatusBadge value={p.value} />,
+        },
+      ];
+    }
+    return [
       { field: 'warehouseName', headerName: 'Warehouse', minWidth: 170 },
       { field: 'sku', headerName: 'SKU', minWidth: 120 },
       { field: 'itemName', headerName: 'Item', minWidth: 200, flex: 2 },
@@ -71,9 +88,13 @@ export function InsightsGrid() {
         minWidth: 130,
         cellRenderer: (p: { value: StockStatus }) => <StatusBadge value={p.value} />,
       },
-    ],
-    [],
-  );
+    ];
+  }, [isMobile]);
+
+  const handleRowClicked = (event: RowClickedEvent<InventoryInsightRow>) => {
+    if (!isMobile || !event.data) return;
+    setViewing(event.data);
+  };
 
   if (!isLoading && rows.length === 0) return null;
 
@@ -83,8 +104,39 @@ export function InsightsGrid() {
         <CardTitle className="text-sm font-medium">Inventory insights</CardTitle>
       </CardHeader>
       <CardContent className="min-h-0 flex-1 px-4 pb-1">
-        <DataGrid columnDefs={columnDefs} rows={rows} loading={isLoading} />
+        <DataGrid
+          columnDefs={columnDefs}
+          rows={rows}
+          loading={isLoading}
+          gridOptions={
+            isMobile
+              ? { onRowClicked: handleRowClicked, rowStyle: { cursor: 'pointer' } }
+              : undefined
+          }
+        />
       </CardContent>
+      <RowDetailsDialog
+        open={viewing !== null}
+        onOpenChange={(open) => !open && setViewing(null)}
+        title={viewing?.itemName ?? ''}
+        fields={
+          viewing
+            ? [
+                { label: 'Warehouse', value: viewing.warehouseName },
+                { label: 'SKU', value: viewing.sku },
+                { label: 'Item', value: viewing.itemName },
+                { label: 'On hand', value: formatNumber(viewing.quantity) },
+                { label: 'In · 30d', value: formatNumber(viewing.inbound30d) },
+                { label: 'Out · 30d', value: formatNumber(viewing.outbound30d) },
+                {
+                  label: 'Last movement',
+                  value: viewing.lastMovementAt ? formatDateTime(viewing.lastMovementAt) : '—',
+                },
+                { label: 'Status', value: <StatusBadge value={viewing.status} /> },
+              ]
+            : []
+        }
+      />
     </Card>
   );
 }

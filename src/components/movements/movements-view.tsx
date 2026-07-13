@@ -1,6 +1,6 @@
 'use client';
 
-import type { ColDef } from 'ag-grid-community';
+import type { ColDef, RowClickedEvent } from 'ag-grid-community';
 import { Filter, Plus } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { Badge } from '@/components/ui/badge';
@@ -17,12 +17,15 @@ import {
 } from '@/components/ui/select';
 import { DataGrid } from '@/components/data-grid';
 import { PageHeader } from '@/components/page-header';
+import { RowDetailsDialog } from '@/components/row-details-dialog';
 import { Permission } from '@/core/application/auth/permissions';
 import type { MovementRow } from '@/lib/client/types';
+import { useIsMobile } from '@/lib/client/use-is-mobile';
 import { useMe } from '@/lib/client/use-me';
 import { usePaginated } from '@/lib/client/use-paginated';
 import { useWarehouseOptions } from '@/lib/client/use-warehouse-options';
 import { formatDateTime, formatNumber } from '@/lib/format';
+import { cn } from '@/lib/utils';
 import { RecordMovementDialog } from './record-movement-dialog';
 
 const ALL = 'all';
@@ -67,6 +70,7 @@ function TypeBadge({ value }: { value: 'INBOUND' | 'OUTBOUND' }) {
 
 export function MovementsView() {
   const { can } = useMe();
+  const isMobile = useIsMobile();
   const { warehouses } = useWarehouseOptions();
   const list = usePaginated<MovementRow>('/api/v1/movements', {
     sortBy: 'occurredAt',
@@ -75,6 +79,7 @@ export function MovementsView() {
   const [recording, setRecording] = useState(false);
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [pending, setPending] = useState<MovementFilters>(EMPTY_FILTERS);
+  const [viewing, setViewing] = useState<MovementRow | null>(null);
 
   const activeFilterCount = Object.values(list.state.filters).filter(Boolean).length;
 
@@ -108,8 +113,36 @@ export function MovementsView() {
     setFiltersOpen(false);
   };
 
-  const columnDefs = useMemo<ColDef<MovementRow>[]>(
-    () => [
+  const columnDefs = useMemo<ColDef<MovementRow>[]>(() => {
+    const qtyCol: ColDef<MovementRow> = {
+      field: 'quantity',
+      headerName: 'Qty',
+      type: 'rightAligned',
+      maxWidth: 110,
+      valueFormatter: (p) => `${p.data?.type === 'OUTBOUND' ? '−' : '+'}${formatNumber(p.value ?? 0)}`,
+      cellClass: (p) =>
+        cn('ag-right-aligned-cell', p.data?.type === 'OUTBOUND' ? 'text-amber-600' : 'text-emerald-600'),
+    };
+    if (isMobile) {
+      return [
+        {
+          field: 'occurredAt',
+          headerName: 'When',
+          minWidth: 110,
+          flex: 1,
+          valueFormatter: (p) => (p.value ? formatDateTime(p.value) : ''),
+        },
+        { field: 'sku', headerName: 'SKU', minWidth: 90, sortable: false },
+        {
+          field: 'type',
+          headerName: 'Type',
+          maxWidth: 90,
+          cellRenderer: (p: { value: 'INBOUND' | 'OUTBOUND' }) => <TypeBadge value={p.value} />,
+        },
+        qtyCol,
+      ];
+    }
+    return [
       {
         field: 'occurredAt',
         headerName: 'When',
@@ -124,15 +157,7 @@ export function MovementsView() {
       },
       { field: 'sku', headerName: 'SKU', minWidth: 120, sortable: false },
       { field: 'itemName', headerName: 'Item', minWidth: 200, flex: 2, sortable: false },
-      {
-        field: 'quantity',
-        headerName: 'Qty',
-        type: 'rightAligned',
-        maxWidth: 110,
-        valueFormatter: (p) =>
-          `${p.data?.type === 'OUTBOUND' ? '−' : '+'}${formatNumber(p.value ?? 0)}`,
-        cellClass: (p) => (p.data?.type === 'OUTBOUND' ? 'text-amber-600' : 'text-emerald-600'),
-      },
+      qtyCol,
       { field: 'warehouseName', headerName: 'Warehouse', minWidth: 160, sortable: false },
       { field: 'createdByName', headerName: 'Recorded by', minWidth: 150, sortable: false },
       {
@@ -142,9 +167,13 @@ export function MovementsView() {
         sortable: false,
         valueFormatter: (p) => p.value ?? '',
       },
-    ],
-    [],
-  );
+    ];
+  }, [isMobile]);
+
+  const handleRowClicked = (event: RowClickedEvent<MovementRow>) => {
+    if (!isMobile || !event.data) return;
+    setViewing(event.data);
+  };
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 p-4 md:p-6">
@@ -285,8 +314,34 @@ export function MovementsView() {
           meta={list.meta}
           onPageChange={list.setPage}
           onSortChange={list.setSort}
+          gridOptions={
+            isMobile ? { onRowClicked: handleRowClicked, rowStyle: { cursor: 'pointer' } } : undefined
+          }
         />
       </div>
+
+      <RowDetailsDialog
+        open={viewing !== null}
+        onOpenChange={(open) => !open && setViewing(null)}
+        title={viewing?.sku ?? ''}
+        fields={
+          viewing
+            ? [
+                { label: 'When', value: formatDateTime(viewing.occurredAt) },
+                { label: 'Type', value: <TypeBadge value={viewing.type} /> },
+                { label: 'SKU', value: viewing.sku },
+                { label: 'Item', value: viewing.itemName },
+                {
+                  label: 'Qty',
+                  value: `${viewing.type === 'OUTBOUND' ? '−' : '+'}${formatNumber(viewing.quantity)}`,
+                },
+                { label: 'Warehouse', value: viewing.warehouseName },
+                { label: 'Recorded by', value: viewing.createdByName },
+                { label: 'Note', value: viewing.note ?? '—' },
+              ]
+            : []
+        }
+      />
 
       <RecordMovementDialog
         open={recording}
