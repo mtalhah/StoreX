@@ -10,6 +10,6 @@ export const metadata: Metadata = { title: 'Dashboard' };
  * from BigQuery (OLAP) — never from the transactional database.
  */
 export default async function DashboardPage() {
-  const ctx = await requirePagePermission(Permission.AnalyticsRead);
-  return <DashboardView scopeLabel={ctx.accessibleWarehouseIds === null ? 'organization' : 'assigned warehouses'} />;
+  await requirePagePermission(Permission.AnalyticsRead);
+  return <DashboardView />;
 }

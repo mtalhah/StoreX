@@ -3,6 +3,7 @@ import type { TenantContext } from '@/core/application/auth/tenant-context';
 import type {
   AnalyticsRepository,
   DashboardKpis,
+  InventoryInsightFilters,
   InventoryInsightRow,
   MovementTrendPoint,
   StockStatus,
@@ -30,24 +31,28 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
     };
   }
 
-  private async run<T>(query: string, params: Record<string, unknown> = {}): Promise<T[]> {
+  private async run<T>(
+    query: string,
+    params: Record<string, unknown> = {},
+    extraTypes: Record<string, string | string[]> = {},
+  ): Promise<T[]> {
     const [rows] = await bigquery.query({
       query,
       params: { ...this.scopeParams, ...params },
-      // Explicit types so empty warehouse-id arrays still bind correctly.
-      types: { warehouseIds: ['STRING'] },
+      // Explicit types so empty warehouse-id arrays / nullable filters still bind correctly.
+      types: { warehouseIds: ['STRING'], ...extraTypes },
     });
     return rows as T[];
   }
 
-  async getKpis(): Promise<DashboardKpis> {
+  async getKpis(days: number): Promise<DashboardKpis> {
     const ds = analyticsDataset();
     const [row] = await this.run<{
       totalStockUnits: number;
       activeSkus: number;
-      inbound30d: number;
-      outbound30d: number;
-      movementVelocity30d: number;
+      inboundInPeriod: number;
+      outboundInPeriod: number;
+      movementVelocity: number;
       utilizationPct: number | null;
       lowStockCount: number;
     }>(
@@ -69,17 +74,17 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
         FROM ${ds}.fact_stock_movement
         WHERE organization_id = @orgId
           AND (@scopeAll OR warehouse_id IN UNNEST(@warehouseIds))
-          AND occurred_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+          AND occurred_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @periodDays DAY)
       )
       SELECT
         -- Storage units on hand / moved, not raw quantity — same rationale
-        -- as utilizationPct below. movementVelocity30d is the one exception:
+        -- as utilizationPct below. movementVelocity is the one exception:
         -- it counts movement events (cadence), not a quantity.
         (SELECT COALESCE(SUM(used_capacity), 0) FROM inv) AS totalStockUnits,
         (SELECT COUNT(*) FROM inv) AS activeSkus,
-        (SELECT COALESCE(SUM(IF(type = 'INBOUND', used_capacity_delta, 0)), 0) FROM mv) AS inbound30d,
-        (SELECT COALESCE(SUM(IF(type = 'OUTBOUND', used_capacity_delta, 0)), 0) FROM mv) AS outbound30d,
-        (SELECT ROUND(COUNT(*) / 30, 1) FROM mv) AS movementVelocity30d,
+        (SELECT COALESCE(SUM(IF(type = 'INBOUND', used_capacity_delta, 0)), 0) FROM mv) AS inboundInPeriod,
+        (SELECT COALESCE(SUM(IF(type = 'OUTBOUND', used_capacity_delta, 0)), 0) FROM mv) AS outboundInPeriod,
+        (SELECT ROUND(COUNT(*) / @periodDays, 1) FROM mv) AS movementVelocity,
         -- Storage-unit-weighted usage vs. total capacity, not a raw
         -- quantity-to-capacity ratio.
         SAFE_DIVIDE(
@@ -88,15 +93,15 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
         ) * 100 AS utilizationPct,
         (SELECT COUNT(*) FROM inv WHERE quantity <= @lowStockQty) AS lowStockCount
       `,
-      { lowStockQty: ANALYTICS_THRESHOLDS.lowStockQty },
+      { lowStockQty: ANALYTICS_THRESHOLDS.lowStockQty, periodDays: days },
     );
 
     return {
       totalStockUnits: Number(row?.totalStockUnits ?? 0),
       activeSkus: Number(row?.activeSkus ?? 0),
-      inbound30d: Number(row?.inbound30d ?? 0),
-      outbound30d: Number(row?.outbound30d ?? 0),
-      movementVelocity30d: Number(row?.movementVelocity30d ?? 0),
+      inboundInPeriod: Number(row?.inboundInPeriod ?? 0),
+      outboundInPeriod: Number(row?.outboundInPeriod ?? 0),
+      movementVelocity: Number(row?.movementVelocity ?? 0),
       utilizationPct: Number(row?.utilizationPct ?? 0),
       lowStockCount: Number(row?.lowStockCount ?? 0),
     };
@@ -112,7 +117,7 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
       `
       SELECT
         day AS date,
-        -- Storage-unit-weighted, same as inbound30d/outbound30d in
+        -- Storage-unit-weighted, same as inboundInPeriod/outboundInPeriod in
         -- getKpis() — this chart is the day-by-day breakdown of the same
         -- measure, not a raw quantity count.
         COALESCE(SUM(IF(m.type = 'INBOUND', m.used_capacity_delta, 0)), 0) AS inbound,
@@ -172,7 +177,10 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
     }));
   }
 
-  async getInventoryInsights(): Promise<InventoryInsightRow[]> {
+  async getInventoryInsights(
+    days: number,
+    filters: InventoryInsightFilters = {},
+  ): Promise<InventoryInsightRow[]> {
     const ds = analyticsDataset();
     const rows = await this.run<{
       warehouseId: string;
@@ -180,20 +188,20 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
       sku: string;
       itemName: string;
       quantity: number;
-      inbound30d: number;
-      outbound30d: number;
+      inboundInPeriod: number;
+      outboundInPeriod: number;
       lastMovementAt: { value: string } | string | null;
       status: StockStatus;
     }>(
       `
-      WITH mv30 AS (
+      WITH mvp AS (
         SELECT
           inventory_item_id,
-          SUM(IF(type = 'INBOUND', quantity, 0)) AS inbound30d,
-          SUM(IF(type = 'OUTBOUND', quantity, 0)) AS outbound30d
+          SUM(IF(type = 'INBOUND', quantity, 0)) AS inboundInPeriod,
+          SUM(IF(type = 'OUTBOUND', quantity, 0)) AS outboundInPeriod
         FROM ${ds}.fact_stock_movement
         WHERE organization_id = @orgId
-          AND occurred_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL 30 DAY)
+          AND occurred_at >= TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @periodDays DAY)
         GROUP BY 1
       ),
       last_mv AS (
@@ -201,35 +209,63 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
         FROM ${ds}.fact_stock_movement
         WHERE organization_id = @orgId
         GROUP BY 1
+      ),
+      classified AS (
+        SELECT
+          i.warehouse_id AS warehouseId,
+          i.warehouse_name AS warehouseName,
+          i.sku AS sku,
+          i.item_name AS itemName,
+          i.quantity AS quantity,
+          COALESCE(m.inboundInPeriod, 0) AS inboundInPeriod,
+          COALESCE(m.outboundInPeriod, 0) AS outboundInPeriod,
+          l.last_movement_at AS lastMovementAtRaw,
+          CASE
+            WHEN i.quantity <= @lowStockQty THEN 'LOW_STOCK'
+            WHEN l.last_movement_at IS NULL
+              OR l.last_movement_at < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @deadStockDays DAY)
+              THEN 'DEAD_STOCK'
+            WHEN COALESCE(m.outboundInPeriod, 0) / @periodDays >= @fastMoverOutboundPerDay THEN 'FAST_MOVER'
+            ELSE 'HEALTHY'
+          END AS status
+        FROM ${ds}.fact_inventory_current i
+        LEFT JOIN mvp m ON m.inventory_item_id = i.inventory_item_id
+        LEFT JOIN last_mv l ON l.inventory_item_id = i.inventory_item_id
+        WHERE i.organization_id = @orgId
+          AND (@scopeAll OR i.warehouse_id IN UNNEST(@warehouseIds))
       )
       SELECT
-        i.warehouse_id AS warehouseId,
-        i.warehouse_name AS warehouseName,
-        i.sku AS sku,
-        i.item_name AS itemName,
-        i.quantity AS quantity,
-        COALESCE(m.inbound30d, 0) AS inbound30d,
-        COALESCE(m.outbound30d, 0) AS outbound30d,
-        FORMAT_TIMESTAMP('%FT%TZ', l.last_movement_at) AS lastMovementAt,
-        CASE
-          WHEN i.quantity <= @lowStockQty THEN 'LOW_STOCK'
-          WHEN l.last_movement_at IS NULL
-            OR l.last_movement_at < TIMESTAMP_SUB(CURRENT_TIMESTAMP(), INTERVAL @deadStockDays DAY)
-            THEN 'DEAD_STOCK'
-          WHEN COALESCE(m.outbound30d, 0) >= @fastMoverOutbound30d THEN 'FAST_MOVER'
-          ELSE 'HEALTHY'
-        END AS status
-      FROM ${ds}.fact_inventory_current i
-      LEFT JOIN mv30 m ON m.inventory_item_id = i.inventory_item_id
-      LEFT JOIN last_mv l ON l.inventory_item_id = i.inventory_item_id
-      WHERE i.organization_id = @orgId
-        AND (@scopeAll OR i.warehouse_id IN UNNEST(@warehouseIds))
-      ORDER BY i.warehouse_name, i.sku
+        warehouseId,
+        warehouseName,
+        sku,
+        itemName,
+        quantity,
+        inboundInPeriod,
+        outboundInPeriod,
+        FORMAT_TIMESTAMP('%FT%TZ', lastMovementAtRaw) AS lastMovementAt,
+        status
+      FROM classified
+      WHERE (@warehouseId IS NULL OR warehouseId = @warehouseId)
+        AND (@status IS NULL OR status = @status)
+        AND (@lastMovementFrom IS NULL OR DATE(lastMovementAtRaw) >= @lastMovementFrom)
+        AND (@lastMovementTo IS NULL OR DATE(lastMovementAtRaw) <= @lastMovementTo)
+      ORDER BY warehouseName, sku
       `,
       {
         lowStockQty: ANALYTICS_THRESHOLDS.lowStockQty,
         deadStockDays: ANALYTICS_THRESHOLDS.deadStockDays,
-        fastMoverOutbound30d: ANALYTICS_THRESHOLDS.fastMoverOutbound30d,
+        fastMoverOutboundPerDay: ANALYTICS_THRESHOLDS.fastMoverOutboundPerDay,
+        periodDays: days,
+        warehouseId: filters.warehouseId ?? null,
+        status: filters.status ?? null,
+        lastMovementFrom: filters.lastMovementFrom ? bigquery.date(filters.lastMovementFrom) : null,
+        lastMovementTo: filters.lastMovementTo ? bigquery.date(filters.lastMovementTo) : null,
+      },
+      {
+        warehouseId: 'STRING',
+        status: 'STRING',
+        lastMovementFrom: 'DATE',
+        lastMovementTo: 'DATE',
       },
     );
 
@@ -239,8 +275,8 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
       sku: r.sku,
       itemName: r.itemName,
       quantity: Number(r.quantity),
-      inbound30d: Number(r.inbound30d),
-      outbound30d: Number(r.outbound30d),
+      inboundInPeriod: Number(r.inboundInPeriod),
+      outboundInPeriod: Number(r.outboundInPeriod),
       lastMovementAt:
         r.lastMovementAt == null
           ? null

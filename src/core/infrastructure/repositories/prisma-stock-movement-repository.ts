@@ -8,6 +8,7 @@ import type {
   RecordMovementData,
   StockMovementRepository,
   StockMovementWithRelations,
+  UpdateMovementData,
 } from '@/core/application/ports/stock-movement-repository';
 import { InsufficientStockError, NotFoundError } from '@/core/domain/errors';
 
@@ -108,6 +109,14 @@ export class PrismaStockMovementRepository implements StockMovementRepository {
     return paginate(rows.map(toDto), totalItems, query);
   }
 
+  async findById(id: string): Promise<StockMovementWithRelations | null> {
+    const row = await this.db.stockMovement.findFirst({
+      where: { id, ...this.scopedWhere },
+      include: movementInclude,
+    });
+    return row ? toDto(row) : null;
+  }
+
   async applyMovement(data: RecordMovementData): Promise<StockMovementWithRelations> {
     const delta = data.type === 'INBOUND' ? data.quantity : -data.quantity;
 
@@ -172,5 +181,86 @@ export class PrismaStockMovementRepository implements StockMovementRepository {
     });
 
     return toDto(row);
+  }
+
+  async updateMovement(
+    id: string,
+    patch: UpdateMovementData,
+  ): Promise<StockMovementWithRelations> {
+    const row = await this.db.$transaction(async (tx) => {
+      const existing = await tx.stockMovement.findFirst({ where: { id, ...this.scopedWhere } });
+      if (!existing) throw new NotFoundError('Stock movement', id);
+
+      if (patch.quantity !== undefined && patch.quantity !== existing.quantity) {
+        // Re-deriving the aggregate for a quantity edit: the item's quantity
+        // currently reflects the OLD signed amount (+old for inbound, -old
+        // for outbound); moving it to reflect the NEW signed amount is just
+        // the delta between the two — same conditional-update guard as
+        // applyMovement so a concurrent movement can never be raced negative.
+        const signedOld = existing.type === 'INBOUND' ? existing.quantity : -existing.quantity;
+        const signedNew = existing.type === 'INBOUND' ? patch.quantity : -patch.quantity;
+        const delta = signedNew - signedOld;
+
+        const guard = await tx.inventoryItem.updateMany({
+          where: {
+            AND: [{ id: existing.inventoryItemId }, ...(delta < 0 ? [{ quantity: { gte: -delta } }] : [])],
+          },
+          data: { quantity: { increment: delta } },
+        });
+        if (guard.count === 0) {
+          const item = await tx.inventoryItem.findUnique({
+            where: { id: existing.inventoryItemId },
+            select: { sku: true, quantity: true },
+          });
+          throw new InsufficientStockError(item?.sku ?? existing.inventoryItemId, -delta, item?.quantity ?? 0);
+        }
+      }
+
+      return tx.stockMovement.update({
+        where: { id },
+        data: {
+          ...(patch.quantity !== undefined ? { quantity: patch.quantity } : {}),
+          ...(patch.note !== undefined ? { note: patch.note || null } : {}),
+        },
+        include: movementInclude,
+      });
+    });
+
+    return toDto(row);
+  }
+
+  async deleteMovement(id: string): Promise<void> {
+    await this.db.$transaction(async (tx) => {
+      const existing = await tx.stockMovement.findFirst({ where: { id, ...this.scopedWhere } });
+      if (!existing) throw new NotFoundError('Stock movement', id);
+
+      // Reversing the movement's effect: removing an INBOUND takes quantity
+      // back down (guarded, same as an outbound record — later movements may
+      // have already consumed that stock); removing an OUTBOUND gives
+      // quantity back (unguarded here — capacity is a soft pre-check owned by
+      // the service, same division of labor as applyMovement/updateMovement).
+      const delta = existing.type === 'INBOUND' ? -existing.quantity : existing.quantity;
+
+      if (delta < 0) {
+        const guard = await tx.inventoryItem.updateMany({
+          where: { id: existing.inventoryItemId, quantity: { gte: -delta } },
+          data: { quantity: { increment: delta } },
+        });
+        if (guard.count === 0) {
+          const item = await tx.inventoryItem.findUnique({
+            where: { id: existing.inventoryItemId },
+            select: { sku: true, quantity: true },
+          });
+          throw new InsufficientStockError(item?.sku ?? existing.inventoryItemId, -delta, item?.quantity ?? 0);
+        }
+      } else {
+        await tx.inventoryItem.update({
+          where: { id: existing.inventoryItemId },
+          data: { quantity: { increment: delta } },
+        });
+      }
+
+      await tx.stockMovement.delete({ where: { id } });
+    });
   }
 }

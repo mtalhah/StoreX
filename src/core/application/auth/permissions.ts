@@ -17,6 +17,8 @@ export const Permission = {
   InventoryRead: 'inventory:read',
   MovementsCreate: 'movements:create',
   MovementsRead: 'movements:read',
+  /** Edit (quantity/note) and delete a previously recorded movement. Manager-only — see ROLE_PERMISSIONS. */
+  MovementsManage: 'movements:manage',
   AnalyticsRead: 'analytics:read',
 } as const;
 
@@ -27,12 +29,18 @@ export type Permission = (typeof Permission)[keyof typeof Permission];
  *  - ADMIN owns the org structure (users, warehouses) and has read-only
  *    visibility into the operational data — admins do NOT record movements
  *    or edit inventory themselves.
- *  - MANAGER and OPERATOR are the operational roles: they read + write
+ *  - MANAGER and OPERATOR are both operational roles: they read + write
  *    inventory and stock movements for the warehouses they're assigned to,
- *    and read analytics scoped to those warehouses. Their permission SETS
- *    are identical; they differ only in warehouse assignment (operators are
- *    pinned to exactly one) and in whether the Warehouses section is shown
- *    (see `canViewWarehousesSection`).
+ *    and read analytics scoped to those warehouses. They differ in
+ *    warehouse assignment (operators are pinned to exactly one) and in
+ *    whether the Warehouses section is shown (see `canViewWarehousesSection`)
+ *    — and, deliberately, in `MovementsManage`: only MANAGER can edit or
+ *    delete a previously recorded movement (correcting quantity/note on an
+ *    existing ledger row, atomically re-deriving the item's materialized
+ *    quantity — see StockMovementService.update/delete). OPERATOR can
+ *    record new movements but not rewrite history; an operator's mistake
+ *    needs a manager to fix it. This is the one intentional asymmetry
+ *    between the two operational roles.
  *
  * WarehousesRead is granted to every role because the inventory/movements
  * UIs list warehouses to populate scoped dropdowns; the list endpoint is
@@ -55,6 +63,7 @@ const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
     Permission.InventoryRead,
     Permission.MovementsCreate,
     Permission.MovementsRead,
+    Permission.MovementsManage,
     Permission.AnalyticsRead,
   ],
   OPERATOR: [

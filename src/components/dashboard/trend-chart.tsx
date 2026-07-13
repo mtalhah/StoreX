@@ -20,11 +20,11 @@ import { cn } from '@/lib/utils';
 const INBOUND = 'var(--chart-1)';
 const OUTBOUND = 'var(--chart-4)';
 
-export function TrendChart({ className }: { className?: string }) {
+export function TrendChart({ className, days }: { className?: string; days: number }) {
   const { data, isLoading } = useSWR<ApiResult<MovementTrendPoint[]>>(
-    '/api/v1/analytics/trend?days=30',
+    `/api/v1/analytics/trend?days=${days}`,
     swrFetcher<MovementTrendPoint[]>,
-    { refreshInterval: 60_000 },
+    { refreshInterval: 300_000 },
   );
   const points = (data?.data ?? []).map((p) => ({
     ...p,
@@ -39,7 +39,7 @@ export function TrendChart({ className }: { className?: string }) {
     <Card className={cn('flex h-full flex-col gap-2 rounded-xl py-4 shadow-xs', className)}>
       <CardHeader className="px-5 py-0">
         <CardTitle className="flex items-baseline justify-between text-sm font-medium">
-          <span>Inbound vs outbound (storage units) · 30 days</span>
+          <span>Inbound vs outbound (storage units) · {days} days</span>
           <span className="flex items-center gap-3 text-xs font-normal text-muted-foreground">
             <span className="flex items-center gap-1.5">
               <span className="size-2 rounded-full" style={{ background: INBOUND }} /> Inbound

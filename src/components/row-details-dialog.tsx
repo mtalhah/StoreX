@@ -34,11 +34,16 @@ export function RowDetailsDialog({
         <DialogHeader>
           <DialogTitle>{title}</DialogTitle>
         </DialogHeader>
-        <dl className="divide-y divide-border text-sm">
+        <dl className="min-w-0 divide-y divide-border text-sm">
           {fields.map((f) => (
             <div key={f.label} className="flex items-center justify-between gap-4 py-2.5 first:pt-0 last:pb-0">
               <dt className="text-muted-foreground">{f.label}</dt>
-              <dd className="min-w-0 truncate text-right font-medium">{f.value}</dd>
+              <dd
+                className="min-w-0 truncate text-right font-medium"
+                title={typeof f.value === 'string' ? f.value : undefined}
+              >
+                {f.value}
+              </dd>
             </div>
           ))}
         </dl>

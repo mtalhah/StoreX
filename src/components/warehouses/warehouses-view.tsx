@@ -126,7 +126,7 @@ export function WarehousesView() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 p-4 md:p-6">
-      <PageHeader title="Warehouses" description="Locations, storage capacity, and current utilization.">
+      <PageHeader title="Warehouses" description="Manage warehouse locations and monitor storage capacity.">
         <Input
           placeholder="Search warehouses…"
           className="w-full bg-card sm:w-56"

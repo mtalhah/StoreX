@@ -157,7 +157,7 @@ async function main() {
   );
   // Operators now have analytics (scoped to their warehouse) and inventory
   // management (both new grants).
-  const operatorKpis = await operator.analytics.kpis();
+  const operatorKpis = await operator.analytics.kpis(30);
   check('operator can view analytics for their warehouse', Number.isFinite(operatorKpis.activeSkus));
   await prisma.inventoryItem.deleteMany({ where: { warehouseId: 'wh_demo_north', sku: 'SMOKE-OP-1' } });
   const operatorItem = await operator.inventory.create({
@@ -328,8 +328,8 @@ async function main() {
   );
 
   console.log('\nAnalytics (dev source: postgres implementation of the port)');
-  const managerKpis = await manager.analytics.kpis();
-  const adminKpis = await admin.analytics.kpis();
+  const managerKpis = await manager.analytics.kpis(30);
+  const adminKpis = await admin.analytics.kpis(30);
   check('KPIs return stock for the manager scope', managerKpis.totalStockUnits > 0);
   check(
     'admin sees at least as much stock as a scoped manager',
@@ -340,7 +340,7 @@ async function main() {
   const utilization = await manager.analytics.warehouseUtilization();
   check('utilization rows respect manager scope (2 warehouses)', utilization.length === 2);
 
-  // Regression check: totalStockUnits (and inbound/outbound30d) must be
+  // Regression check: totalStockUnits (and inbound/outboundInPeriod) must be
   // storage-unit-weighted, not raw sum(quantity) — otherwise a warehouse
   // full of bulky pallets would under-report and one full of tiny
   // consumables would over-report, exactly the bug this feature fixes.
@@ -367,8 +367,8 @@ async function main() {
     })
   ).reduce((sum, m) => sum + m.quantity * Number(m.inventoryItem.storageUnitsPerItem), 0);
   check(
-    'admin inbound30d matches an independent storage-unit-weighted recomputation',
-    Math.abs(adminKpis.inbound30d - expectedWeightedInbound30d) < 0.01,
+    'admin inboundInPeriod matches an independent storage-unit-weighted recomputation',
+    Math.abs(adminKpis.inboundInPeriod - expectedWeightedInbound30d) < 0.01,
   );
 
   console.log(failures === 0 ? '\nAll smoke checks passed.' : `\n${failures} check(s) FAILED.`);

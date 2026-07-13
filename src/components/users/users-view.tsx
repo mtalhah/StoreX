@@ -237,7 +237,7 @@ export function UsersView({ currentUserId }: { currentUserId: string }) {
     <div className="flex h-full min-h-0 flex-col gap-4 p-4 md:p-6">
       <PageHeader
         title="Users"
-        description="Provision teammates and control their warehouse access."
+        description="Manage your team and their warehouse permissions."
       >
         <Input
           placeholder="Search users…"

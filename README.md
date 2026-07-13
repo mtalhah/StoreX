@@ -154,7 +154,9 @@ Design notes:
   capacity check (inbound-movement rejection, capacity-reduction guard,
   dashboard utilization) is computed from this weighted sum, never from raw
   quantity.
-- Movements are immutable; users with recorded movements can only be
+- Movements are immutable to everyone except a Manager correcting a mistake
+  (`movements:manage` — quantity/note only, never type/item/warehouse; see
+  Authorization strategy below). Users with recorded movements can only be
   deactivated, never deleted (FK `RESTRICT` keeps the audit trail intact).
 - Indexes match the read paths: `(organizationId, occurredAt DESC)`,
   `(warehouseId, occurredAt DESC)`, `(organizationId, sku)`, etc.
@@ -261,7 +263,16 @@ inventory and stock movements.
 | inventory:read | ✅ | ✅ (assigned) | ✅ (own) |
 | movements:create | — | ✅ (assigned) | ✅ (own) |
 | movements:read | ✅ | ✅ (assigned) | ✅ (own) |
+| movements:manage (edit/delete) | — | ✅ (assigned) | — |
 | analytics:read | ✅ (all) | ✅ (assigned) | ✅ (own) |
+
+`movements:manage` is the one deliberate asymmetry between Manager and
+Operator: both can record new movements, but only a Manager can edit
+(quantity/note) or delete a previously recorded one — an Operator's mistake
+needs a Manager to correct it. Editing/deleting atomically re-derives the
+affected item's materialized quantity (same conditional-update guard as
+recording a movement); movements stay otherwise immutable — no type, item, or
+warehouse change, since that's really a different movement.
 
 The **Warehouses section** (nav item + `/warehouses` page) is gated by a
 separate rule, not a plain permission, because the Manager case depends on

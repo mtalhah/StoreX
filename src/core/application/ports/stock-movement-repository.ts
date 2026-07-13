@@ -36,9 +36,15 @@ export interface RecordMovementData {
   createdById: string;
 }
 
+export interface UpdateMovementData {
+  quantity?: number;
+  note?: string;
+}
+
 /** Tenant- and warehouse-scoped; see WarehouseRepository contract note. */
 export interface StockMovementRepository {
   findMany(query: MovementListQuery): Promise<Paginated<StockMovementWithRelations>>;
+  findById(id: string): Promise<StockMovementWithRelations | null>;
   /**
    * Atomically inserts the movement row and adjusts the materialized item
    * quantity in one transaction. The quantity update is conditional
@@ -49,4 +55,19 @@ export interface StockMovementRepository {
    * and the non-negative invariant.
    */
   applyMovement(data: RecordMovementData): Promise<StockMovementWithRelations>;
+  /**
+   * Atomically re-derives the item's materialized quantity for the delta
+   * between the movement's old and new quantity, then updates the movement
+   * row, in one transaction — same non-negative guard and same division of
+   * labor as `applyMovement` (capacity re-checks belong to the service).
+   * Throws NotFoundError / InsufficientStockError.
+   */
+  updateMovement(id: string, patch: UpdateMovementData): Promise<StockMovementWithRelations>;
+  /**
+   * Atomically reverses the movement's effect on the item's materialized
+   * quantity and deletes the row, in one transaction. Throws NotFoundError /
+   * InsufficientStockError (deleting an INBOUND that later movements already
+   * consumed would drive quantity negative).
+   */
+  deleteMovement(id: string): Promise<void>;
 }

@@ -127,6 +127,13 @@ export const movementCreateSchema = z.object({
   note: z.string().trim().min(1).max(500).optional(),
 });
 
+export const movementUpdateSchema = z
+  .object({
+    quantity: z.number().int().positive().max(1_000_000).optional(),
+    note: z.string().trim().max(500).optional(),
+  })
+  .refine((v) => Object.keys(v).length > 0, requireSomeField);
+
 // ---------- users ----------
 
 export const userListSchema = paginationSchema.extend({
@@ -158,6 +165,15 @@ export const userUpdateSchema = z
 
 // ---------- analytics ----------
 
-export const trendQuerySchema = z.object({
+const STOCK_STATUSES = ['LOW_STOCK', 'DEAD_STOCK', 'FAST_MOVER', 'HEALTHY'] as const;
+
+export const periodQuerySchema = z.object({
   days: z.coerce.number().int().min(1).max(180).default(30),
+});
+
+export const insightsQuerySchema = periodQuerySchema.extend({
+  warehouseId: z.string().min(1).optional(),
+  status: z.enum(STOCK_STATUSES).optional(),
+  lastMovementFrom: z.string().trim().min(1).optional(),
+  lastMovementTo: z.string().trim().min(1).optional(),
 });

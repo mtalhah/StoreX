@@ -4,12 +4,19 @@ import type { TenantContext } from '../auth/tenant-context';
 import type {
   AnalyticsRepository,
   DashboardKpis,
+  InventoryInsightFilters,
   InventoryInsightRow,
   MovementTrendPoint,
   WarehouseUtilizationRow,
 } from '../ports/analytics-repository';
 
-const MAX_TREND_DAYS = 180;
+const MAX_PERIOD_DAYS = 180;
+
+function assertValidPeriod(days: number): void {
+  if (!Number.isInteger(days) || days < 1 || days > MAX_PERIOD_DAYS) {
+    throw new ValidationError(`Period must be between 1 and ${MAX_PERIOD_DAYS} days.`);
+  }
+}
 
 export class AnalyticsService {
   constructor(
@@ -17,16 +24,15 @@ export class AnalyticsService {
     private readonly analytics: AnalyticsRepository,
   ) {}
 
-  async kpis(): Promise<DashboardKpis> {
+  async kpis(days: number): Promise<DashboardKpis> {
     authorize(this.ctx, Permission.AnalyticsRead);
-    return this.analytics.getKpis();
+    assertValidPeriod(days);
+    return this.analytics.getKpis(days);
   }
 
   async movementTrend(days: number): Promise<MovementTrendPoint[]> {
     authorize(this.ctx, Permission.AnalyticsRead);
-    if (!Number.isInteger(days) || days < 1 || days > MAX_TREND_DAYS) {
-      throw new ValidationError(`Trend window must be between 1 and ${MAX_TREND_DAYS} days.`);
-    }
+    assertValidPeriod(days);
     return this.analytics.getMovementTrend(days);
   }
 
@@ -35,8 +41,12 @@ export class AnalyticsService {
     return this.analytics.getWarehouseUtilization();
   }
 
-  async inventoryInsights(): Promise<InventoryInsightRow[]> {
+  async inventoryInsights(
+    days: number,
+    filters?: InventoryInsightFilters,
+  ): Promise<InventoryInsightRow[]> {
     authorize(this.ctx, Permission.AnalyticsRead);
-    return this.analytics.getInventoryInsights();
+    assertValidPeriod(days);
+    return this.analytics.getInventoryInsights(days, filters);
   }
 }

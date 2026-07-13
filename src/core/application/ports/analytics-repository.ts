@@ -16,14 +16,14 @@ export interface DashboardKpis {
   totalStockUnits: number;
   activeSkus: number;
   /**
-   * Storage units moved in/out over the trailing 30 days:
+   * Storage units moved in/out over the selected trailing period:
    * sum(movement.quantity * item.storageUnitsPerItem), not a raw quantity
    * sum — same rationale as totalStockUnits.
    */
-  inbound30d: number;
-  outbound30d: number;
-  /** Average number of movement events per day over the trailing 30 days (a count, not a quantity). */
-  movementVelocity30d: number;
+  inboundInPeriod: number;
+  outboundInPeriod: number;
+  /** Average number of movement events per day over the selected trailing period (a count, not a quantity). */
+  movementVelocity: number;
   /**
    * Storage capacity used vs. total capacity across accessible warehouses
    * (sum(quantity * storageUnitsPerItem) / sum(capacity)) — not a raw
@@ -39,7 +39,7 @@ export interface MovementTrendPoint {
   /**
    * Storage units moved in/out that day: sum(movement.quantity *
    * item.storageUnitsPerItem), not a raw quantity — the daily breakdown of
-   * the same measure as DashboardKpis.inbound30d/outbound30d.
+   * the same measure as DashboardKpis.inboundInPeriod/outboundInPeriod.
    */
   inbound: number;
   outbound: number;
@@ -63,15 +63,27 @@ export interface InventoryInsightRow {
   sku: string;
   itemName: string;
   quantity: number;
-  inbound30d: number;
-  outbound30d: number;
+  inboundInPeriod: number;
+  outboundInPeriod: number;
   lastMovementAt: string | null;
   status: StockStatus;
 }
 
+export interface InventoryInsightFilters {
+  warehouseId?: string;
+  status?: StockStatus;
+  /** Inclusive lower bound on lastMovementAt (ISO date, YYYY-MM-DD). */
+  lastMovementFrom?: string;
+  /** Inclusive upper bound on lastMovementAt (ISO date, YYYY-MM-DD). */
+  lastMovementTo?: string;
+}
+
 export interface AnalyticsRepository {
-  getKpis(): Promise<DashboardKpis>;
+  getKpis(days: number): Promise<DashboardKpis>;
   getMovementTrend(days: number): Promise<MovementTrendPoint[]>;
   getWarehouseUtilization(): Promise<WarehouseUtilizationRow[]>;
-  getInventoryInsights(): Promise<InventoryInsightRow[]>;
+  getInventoryInsights(
+    days: number,
+    filters?: InventoryInsightFilters,
+  ): Promise<InventoryInsightRow[]>;
 }

@@ -1,8 +1,9 @@
 'use client';
 
 import type { ColDef, RowClickedEvent } from 'ag-grid-community';
-import { Filter, Plus } from 'lucide-react';
+import { Filter, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
+import { toast } from 'sonner';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -15,10 +16,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { ConfirmDialog } from '@/components/confirm-dialog';
 import { DataGrid } from '@/components/data-grid';
 import { PageHeader } from '@/components/page-header';
 import { RowDetailsDialog } from '@/components/row-details-dialog';
 import { Permission } from '@/core/application/auth/permissions';
+import { apiFetch, ApiError } from '@/lib/client/api';
 import type { MovementRow } from '@/lib/client/types';
 import { useIsMobile } from '@/lib/client/use-is-mobile';
 import { useMe } from '@/lib/client/use-me';
@@ -26,6 +29,7 @@ import { usePaginated } from '@/lib/client/use-paginated';
 import { useWarehouseOptions } from '@/lib/client/use-warehouse-options';
 import { formatDateTime, formatNumber } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { EditMovementDialog } from './edit-movement-dialog';
 import { RecordMovementDialog } from './record-movement-dialog';
 
 const ALL = 'all';
@@ -70,6 +74,7 @@ function TypeBadge({ value }: { value: 'INBOUND' | 'OUTBOUND' }) {
 
 export function MovementsView() {
   const { can } = useMe();
+  const canManage = can(Permission.MovementsManage);
   const isMobile = useIsMobile();
   const { warehouses } = useWarehouseOptions();
   const list = usePaginated<MovementRow>('/api/v1/movements', {
@@ -80,6 +85,8 @@ export function MovementsView() {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [pending, setPending] = useState<MovementFilters>(EMPTY_FILTERS);
   const [viewing, setViewing] = useState<MovementRow | null>(null);
+  const [editing, setEditing] = useState<MovementRow | null>(null);
+  const [deleting, setDeleting] = useState<MovementRow | null>(null);
 
   const activeFilterCount = Object.values(list.state.filters).filter(Boolean).length;
 
@@ -113,6 +120,33 @@ export function MovementsView() {
     setFiltersOpen(false);
   };
 
+  const actionsCol = useMemo<ColDef<MovementRow>>(
+    () => ({
+      colId: 'actions',
+      headerName: 'Actions',
+      sortable: false,
+      maxWidth: 100,
+      cellRenderer: (p: { data?: MovementRow }) =>
+        p.data ? (
+          <div className="flex h-full items-center gap-1">
+            <Button variant="ghost" size="icon" className="size-7" title="Edit" onClick={() => setEditing(p.data!)}>
+              <Pencil className="size-3.5" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-7 text-destructive hover:text-destructive"
+              title="Delete"
+              onClick={() => setDeleting(p.data!)}
+            >
+              <Trash2 className="size-3.5" />
+            </Button>
+          </div>
+        ) : null,
+    }),
+    [],
+  );
+
   const columnDefs = useMemo<ColDef<MovementRow>[]>(() => {
     const qtyCol: ColDef<MovementRow> = {
       field: 'quantity',
@@ -124,14 +158,14 @@ export function MovementsView() {
         cn('ag-right-aligned-cell', p.data?.type === 'OUTBOUND' ? 'text-amber-600' : 'text-emerald-600'),
     };
     if (isMobile) {
+      const whenCol: ColDef<MovementRow> = {
+        field: 'occurredAt',
+        headerName: 'When',
+        minWidth: 110,
+        flex: 1,
+        valueFormatter: (p) => (p.value ? formatDateTime(p.value) : ''),
+      };
       return [
-        {
-          field: 'occurredAt',
-          headerName: 'When',
-          minWidth: 110,
-          flex: 1,
-          valueFormatter: (p) => (p.value ? formatDateTime(p.value) : ''),
-        },
         { field: 'sku', headerName: 'SKU', minWidth: 90, sortable: false },
         {
           field: 'type',
@@ -140,6 +174,10 @@ export function MovementsView() {
           cellRenderer: (p: { value: 'INBOUND' | 'OUTBOUND' }) => <TypeBadge value={p.value} />,
         },
         qtyCol,
+        // Managers get row actions here (full details, including "When", are
+        // still one tap away via RowDetailsDialog); everyone else keeps the
+        // at-a-glance timestamp since they have nothing to act on.
+        canManage ? actionsCol : whenCol,
       ];
     }
     return [
@@ -167,17 +205,35 @@ export function MovementsView() {
         sortable: false,
         valueFormatter: (p) => p.value ?? '',
       },
+      ...(canManage ? [actionsCol] : []),
     ];
-  }, [isMobile]);
+  }, [isMobile, canManage, actionsCol]);
 
   const handleRowClicked = (event: RowClickedEvent<MovementRow>) => {
     if (!isMobile || !event.data) return;
+    const target = event.event?.target as HTMLElement | null;
+    if (target?.closest('button')) return;
     setViewing(event.data);
+  };
+
+  const handleDelete = async () => {
+    if (!deleting) return;
+    try {
+      await apiFetch(`/api/v1/movements/${deleting.id}`, { method: 'DELETE' });
+      toast.success('Movement deleted.');
+      await list.mutate();
+    } catch (e) {
+      toast.error(e instanceof ApiError ? e.message : 'Failed to delete movement.');
+      throw e;
+    }
   };
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 p-4 md:p-6">
-      <PageHeader title="Stock movements" description="The immutable ledger behind every quantity.">
+      <PageHeader
+        title="Stock movements"
+        description="A complete, traceable record of every inbound and outbound movement."
+      >
         <Input
           placeholder="Search SKU or item…"
           className="w-full bg-card sm:w-56"
@@ -348,6 +404,25 @@ export function MovementsView() {
         item={null}
         onOpenChange={setRecording}
         onSaved={() => list.mutate()}
+      />
+
+      <EditMovementDialog
+        open={editing !== null}
+        movement={editing}
+        onOpenChange={(open) => !open && setEditing(null)}
+        onSaved={() => list.mutate()}
+      />
+
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title="Delete movement?"
+        description={
+          deleting
+            ? `${deleting.type === 'INBOUND' ? 'Inbound' : 'Outbound'} of ${formatNumber(deleting.quantity)} × ${deleting.sku} will be removed, and ${deleting.itemName}'s quantity on hand will be adjusted accordingly.`
+            : ''
+        }
+        onConfirm={handleDelete}
       />
     </div>
   );

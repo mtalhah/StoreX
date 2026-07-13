@@ -3,6 +3,7 @@ import type { TenantContext } from '@/core/application/auth/tenant-context';
 import type {
   AnalyticsRepository,
   DashboardKpis,
+  InventoryInsightFilters,
   InventoryInsightRow,
   MovementTrendPoint,
   StockStatus,
@@ -53,25 +54,25 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
     };
   }
 
-  async getKpis(): Promise<DashboardKpis> {
-    const since30d = new Date(Date.now() - 30 * DAY_MS);
+  async getKpis(days: number): Promise<DashboardKpis> {
+    const sincePeriod = new Date(Date.now() - days * DAY_MS);
 
     // Loaded as rows (not aggregates) because every "total" here is a
     // per-row product — quantity * storageUnitsPerItem — which Prisma can't
-    // sum server-side without raw SQL. totalStockUnits, inbound30d, and
-    // outbound30d are all expressed in storage units for the same reason
+    // sum server-side without raw SQL. totalStockUnits, inboundInPeriod, and
+    // outboundInPeriod are all expressed in storage units for the same reason
     // utilizationPct is: 10 pallets moving through a warehouse is not the
     // same "amount" as 10 needles, so none of these may be a raw quantity
-    // sum. movementVelocity30d is the one exception — it's a count of
+    // sum. movementVelocity is the one exception — it's a count of
     // movement events (cadence), not a quantity, so it's unaffected.
-    const [items, capacity, movements30d, lowStock] = await Promise.all([
+    const [items, capacity, movementsInPeriod, lowStock] = await Promise.all([
       this.db.inventoryItem.findMany({
         where: this.itemScope,
         select: { quantity: true, storageUnitsPerItem: true },
       }),
       this.db.warehouse.aggregate({ where: this.warehouseScope, _sum: { capacity: true } }),
       this.db.stockMovement.findMany({
-        where: { ...this.movementScope, occurredAt: { gte: since30d } },
+        where: { ...this.movementScope, occurredAt: { gte: sincePeriod } },
         select: {
           type: true,
           quantity: true,
@@ -89,16 +90,16 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
     );
     const totalCapacity = capacity._sum.capacity ?? 0;
     const weightedFlow = (type: 'INBOUND' | 'OUTBOUND') =>
-      movements30d
+      movementsInPeriod
         .filter((m) => m.type === type)
         .reduce((sum, m) => sum + m.quantity * m.inventoryItem.storageUnitsPerItem.toNumber(), 0);
 
     return {
       totalStockUnits: usedCapacity,
       activeSkus: items.length,
-      inbound30d: weightedFlow('INBOUND'),
-      outbound30d: weightedFlow('OUTBOUND'),
-      movementVelocity30d: Math.round((movements30d.length / 30) * 10) / 10,
+      inboundInPeriod: weightedFlow('INBOUND'),
+      outboundInPeriod: weightedFlow('OUTBOUND'),
+      movementVelocity: Math.round((movementsInPeriod.length / days) * 10) / 10,
       utilizationPct: totalCapacity > 0 ? (usedCapacity / totalCapacity) * 100 : 0,
       lowStockCount: lowStock,
     };
@@ -108,8 +109,8 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
     const start = new Date(Date.now() - (days - 1) * DAY_MS);
     start.setUTCHours(0, 0, 0, 0);
 
-    // Storage-unit-weighted, same as inbound30d/outbound30d in getKpis() —
-    // this chart is the day-by-day breakdown of the same measure.
+    // Storage-unit-weighted, same as inboundInPeriod/outboundInPeriod in
+    // getKpis() — this chart is the day-by-day breakdown of the same measure.
     const movements = await this.db.stockMovement.findMany({
       where: { ...this.movementScope, occurredAt: { gte: start } },
       select: {
@@ -166,19 +167,25 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
     });
   }
 
-  async getInventoryInsights(): Promise<InventoryInsightRow[]> {
-    const since30d = new Date(Date.now() - 30 * DAY_MS);
+  async getInventoryInsights(
+    days: number,
+    filters: InventoryInsightFilters = {},
+  ): Promise<InventoryInsightRow[]> {
+    const sincePeriod = new Date(Date.now() - days * DAY_MS);
     const deadCutoff = new Date(Date.now() - ANALYTICS_THRESHOLDS.deadStockDays * DAY_MS);
 
-    const [items, mv30, lastMv] = await Promise.all([
+    const [items, mvPeriod, lastMv] = await Promise.all([
       this.db.inventoryItem.findMany({
-        where: this.itemScope,
+        where: {
+          ...this.itemScope,
+          ...(filters.warehouseId ? { warehouseId: filters.warehouseId } : {}),
+        },
         include: { warehouse: { select: { name: true } } },
         orderBy: [{ warehouse: { name: 'asc' } }, { sku: 'asc' }],
       }),
       this.db.stockMovement.groupBy({
         by: ['inventoryItemId', 'type'],
-        where: { ...this.movementScope, occurredAt: { gte: since30d } },
+        where: { ...this.movementScope, occurredAt: { gte: sincePeriod } },
         _sum: { quantity: true },
       }),
       this.db.stockMovement.groupBy({
@@ -189,31 +196,39 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
     ]);
 
     const flow = (itemId: string, type: 'INBOUND' | 'OUTBOUND') =>
-      mv30.find((m) => m.inventoryItemId === itemId && m.type === type)?._sum.quantity ?? 0;
+      mvPeriod.find((m) => m.inventoryItemId === itemId && m.type === type)?._sum.quantity ?? 0;
     const lastFor = (itemId: string) =>
       lastMv.find((m) => m.inventoryItemId === itemId)?._max.occurredAt ?? null;
 
-    return items.map((item) => {
-      const inbound30d = flow(item.id, 'INBOUND');
-      const outbound30d = flow(item.id, 'OUTBOUND');
-      const lastMovementAt = lastFor(item.id);
+    const lastMovementFrom = filters.lastMovementFrom ? new Date(filters.lastMovementFrom) : null;
+    const lastMovementTo = filters.lastMovementTo ? new Date(filters.lastMovementTo) : null;
 
-      let status: StockStatus = 'HEALTHY';
-      if (item.quantity <= ANALYTICS_THRESHOLDS.lowStockQty) status = 'LOW_STOCK';
-      else if (!lastMovementAt || lastMovementAt < deadCutoff) status = 'DEAD_STOCK';
-      else if (outbound30d >= ANALYTICS_THRESHOLDS.fastMoverOutbound30d) status = 'FAST_MOVER';
+    return items
+      .map((item) => {
+        const inboundInPeriod = flow(item.id, 'INBOUND');
+        const outboundInPeriod = flow(item.id, 'OUTBOUND');
+        const lastMovementAt = lastFor(item.id);
 
-      return {
-        warehouseId: item.warehouseId,
-        warehouseName: item.warehouse.name,
-        sku: item.sku,
-        itemName: item.name,
-        quantity: item.quantity,
-        inbound30d,
-        outbound30d,
-        lastMovementAt: lastMovementAt ? lastMovementAt.toISOString() : null,
-        status,
-      };
-    });
+        let status: StockStatus = 'HEALTHY';
+        if (item.quantity <= ANALYTICS_THRESHOLDS.lowStockQty) status = 'LOW_STOCK';
+        else if (!lastMovementAt || lastMovementAt < deadCutoff) status = 'DEAD_STOCK';
+        else if (outboundInPeriod / days >= ANALYTICS_THRESHOLDS.fastMoverOutboundPerDay)
+          status = 'FAST_MOVER';
+
+        return {
+          warehouseId: item.warehouseId,
+          warehouseName: item.warehouse.name,
+          sku: item.sku,
+          itemName: item.name,
+          quantity: item.quantity,
+          inboundInPeriod,
+          outboundInPeriod,
+          lastMovementAt: lastMovementAt ? lastMovementAt.toISOString() : null,
+          status,
+        };
+      })
+      .filter((row) => !filters.status || row.status === filters.status)
+      .filter((row) => !lastMovementFrom || (row.lastMovementAt && new Date(row.lastMovementAt) >= lastMovementFrom))
+      .filter((row) => !lastMovementTo || (row.lastMovementAt && new Date(row.lastMovementAt) <= lastMovementTo));
   }
 }

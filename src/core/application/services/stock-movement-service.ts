@@ -22,6 +22,11 @@ export interface RecordMovementInput {
   note?: string;
 }
 
+export interface UpdateMovementInput {
+  quantity?: number;
+  note?: string;
+}
+
 /**
  * The single write path for stock levels. Inventory quantities are never
  * mutated directly anywhere else — they are derived here, from movements,
@@ -81,5 +86,70 @@ export class StockMovementService {
       note: input.note,
       createdById: this.ctx.userId,
     });
+  }
+
+  async update(id: string, input: UpdateMovementInput): Promise<StockMovementWithRelations> {
+    authorize(this.ctx, Permission.MovementsManage);
+
+    if (input.quantity === undefined && input.note === undefined) {
+      throw new ValidationError('At least one field must be provided.');
+    }
+    if (input.quantity !== undefined && (!Number.isInteger(input.quantity) || input.quantity <= 0)) {
+      throw new ValidationError('Movement quantity must be a positive whole number.');
+    }
+
+    const existing = await this.movements.findById(id);
+    if (!existing) throw new NotFoundError('Stock movement', id);
+
+    if (input.quantity !== undefined && input.quantity !== existing.quantity) {
+      // Net effect on the item's quantity, same sign convention as record():
+      // positive means this edit adds to what's on hand (a bigger inbound or
+      // a smaller outbound) and needs the same soft capacity pre-check as an
+      // inbound; the "don't go negative" case is the repository's atomic
+      // guard, not this one.
+      const signedOld = existing.type === 'INBOUND' ? existing.quantity : -existing.quantity;
+      const signedNew = existing.type === 'INBOUND' ? input.quantity : -input.quantity;
+      const delta = signedNew - signedOld;
+
+      if (delta > 0) {
+        const item = await this.inventory.findById(existing.inventoryItemId);
+        if (!item) throw new NotFoundError('Inventory item', existing.inventoryItemId);
+        const warehouse = await this.warehouses.findById(existing.warehouseId);
+        if (!warehouse) throw new NotFoundError('Warehouse', existing.warehouseId);
+        const usedCapacity = await this.inventory.usedCapacityInWarehouse(existing.warehouseId);
+        const requiredCapacity = delta * item.storageUnitsPerItem;
+        const remaining = warehouse.capacity - usedCapacity;
+        if (requiredCapacity > remaining) {
+          throw new CapacityExceededError(warehouse.name, requiredCapacity, Math.max(0, remaining));
+        }
+      }
+    }
+
+    return this.movements.updateMovement(id, input);
+  }
+
+  async delete(id: string): Promise<void> {
+    authorize(this.ctx, Permission.MovementsManage);
+
+    const existing = await this.movements.findById(id);
+    if (!existing) throw new NotFoundError('Stock movement', id);
+
+    if (existing.type === 'OUTBOUND') {
+      // Deleting an outbound gives its quantity back — same soft capacity
+      // pre-check as an inbound record/increase; the "don't go negative"
+      // case (deleting an inbound) is the repository's atomic guard.
+      const item = await this.inventory.findById(existing.inventoryItemId);
+      if (!item) throw new NotFoundError('Inventory item', existing.inventoryItemId);
+      const warehouse = await this.warehouses.findById(existing.warehouseId);
+      if (!warehouse) throw new NotFoundError('Warehouse', existing.warehouseId);
+      const usedCapacity = await this.inventory.usedCapacityInWarehouse(existing.warehouseId);
+      const requiredCapacity = existing.quantity * item.storageUnitsPerItem;
+      const remaining = warehouse.capacity - usedCapacity;
+      if (requiredCapacity > remaining) {
+        throw new CapacityExceededError(warehouse.name, requiredCapacity, Math.max(0, remaining));
+      }
+    }
+
+    await this.movements.deleteMovement(id);
   }
 }

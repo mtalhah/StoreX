@@ -12,7 +12,7 @@ export function UtilizationPanel({ className }: { className?: string }) {
   const { data, isLoading } = useSWR<ApiResult<WarehouseUtilizationRow[]>>(
     '/api/v1/analytics/utilization',
     swrFetcher<WarehouseUtilizationRow[]>,
-    { refreshInterval: 60_000 },
+    { refreshInterval: 300_000 },
   );
   const rows = data?.data ?? [];
 

@@ -157,7 +157,7 @@ export function InventoryView() {
 
   return (
     <div className="flex h-full min-h-0 flex-col gap-4 p-4 md:p-6">
-      <PageHeader title="Inventory" description="Stock on hand across your warehouses.">
+      <PageHeader title="Inventory" description="Track and manage stock levels across every warehouse.">
         <Select
           value={list.state.filters.warehouseId || ALL}
           onValueChange={(v) => list.setFilter('warehouseId', !v || v === ALL ? '' : v)}
