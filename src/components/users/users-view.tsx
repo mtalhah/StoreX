@@ -1,7 +1,7 @@
 'use client';
 
 import type { ColDef, RowClickedEvent } from 'ag-grid-community';
-import { Filter, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Filter, Pencil, Plus, ShieldCheck, Trash2 } from 'lucide-react';
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
 import { ConfirmDialog } from '@/components/confirm-dialog';
@@ -28,6 +28,7 @@ import { useMe } from '@/lib/client/use-me';
 import { usePaginated } from '@/lib/client/use-paginated';
 import { useWarehouseOptions } from '@/lib/client/use-warehouse-options';
 import { ROLE_LABELS } from '@/lib/format';
+import { EditPermissionsDialog } from './edit-permissions-dialog';
 import { UserDialog } from './user-dialog';
 
 const ALL = 'all';
@@ -82,13 +83,15 @@ function warehousesOf(user: UserRow): string {
 }
 
 export function UsersView({ currentUserId }: { currentUserId: string }) {
-  const { can } = useMe();
+  const { me, can } = useMe();
   const canManage = can(Permission.UsersManage);
+  const isAdmin = me?.role === 'ADMIN';
   const isMobile = useIsMobile();
   const { warehouses } = useWarehouseOptions();
   const list = usePaginated<UserRow>('/api/v1/users', { sortBy: 'email' });
 
   const [creating, setCreating] = useState(false);
+  const [editingPermissions, setEditingPermissions] = useState(false);
   const [editing, setEditing] = useState<UserRow | null>(null);
   const [deleting, setDeleting] = useState<UserRow | null>(null);
   const [viewing, setViewing] = useState<UserRow | null>(null);
@@ -330,6 +333,15 @@ export function UsersView({ currentUserId }: { currentUserId: string }) {
             </div>
           </PopoverContent>
         </Popover>
+        {isAdmin && (
+          <Button
+            variant="outline"
+            className="w-full gap-1.5 bg-card sm:w-auto"
+            onClick={() => setEditingPermissions(true)}
+          >
+            <ShieldCheck className="size-4" /> Edit permissions
+          </Button>
+        )}
         {canManage && (
           <Button className="w-full sm:w-auto" onClick={() => setCreating(true)}>
             <Plus className="size-4" /> Invite user
@@ -370,6 +382,8 @@ export function UsersView({ currentUserId }: { currentUserId: string }) {
             : []
         }
       />
+
+      <EditPermissionsDialog open={editingPermissions} onOpenChange={setEditingPermissions} />
 
       <UserDialog
         open={creating || editing !== null}

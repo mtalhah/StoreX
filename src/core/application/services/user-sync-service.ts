@@ -122,6 +122,7 @@ export class UserSyncService {
       userId: user.id,
       email: user.email,
       role: user.role,
+      permissions: user.permissions,
       workosUserId: user.workosUserId,
       // Admins see the whole organization; everyone else only their
       // assigned warehouses.

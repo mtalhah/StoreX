@@ -39,6 +39,23 @@ export type Warehouse = Prisma.WarehouseModel
  */
 export type WarehouseAssignment = Prisma.WarehouseAssignmentModel
 /**
+ * Model RolePermission
+ * Org-scoped, editable permission set for MANAGER/OPERATOR. Presence of a
+ * row = granted. ADMIN is never represented here — its permissions stay the
+ * fixed hardcoded list (see core/application/auth/permissions.ts) and are
+ * not editable, to guard against an org locking itself out of user
+ * management.
+ */
+export type RolePermission = Prisma.RolePermissionModel
+/**
+ * Model UserPermissionOverride
+ * Per-user exception on top of their role's effective permission set.
+ * GRANT adds a permission the role wouldn't otherwise have; REVOKE removes
+ * one it would. Only valid for MANAGER/OPERATOR users — the service layer
+ * rejects overrides targeting an ADMIN user.
+ */
+export type UserPermissionOverride = Prisma.UserPermissionOverrideModel
+/**
  * Model InventoryItem
  * 
  */

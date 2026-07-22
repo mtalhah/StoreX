@@ -12,6 +12,7 @@
     "db:migrate": "prisma migrate dev",
     "db:deploy": "prisma migrate deploy",
     "db:seed": "prisma db seed",
+    "db:seed:scale": "tsx prisma/seed-scale.ts",
     "db:studio": "prisma studio",
     "smoke": "tsx scripts/smoke-test.ts"
   },

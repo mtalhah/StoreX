@@ -1,5 +1,7 @@
 /** Shared client/server display formatting. */
 
+import type { Permission } from '@/core/application/auth/permissions';
+
 const numberFmt = new Intl.NumberFormat('en-US', { maximumFractionDigits: 2 });
 const dateFmt = new Intl.DateTimeFormat('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
 const dateTimeFmt = new Intl.DateTimeFormat('en-US', {
@@ -34,6 +36,28 @@ export const ROLE_LABELS: Record<string, string> = {
   ADMIN: 'Admin',
   MANAGER: 'Warehouse Manager',
   OPERATOR: 'Operator',
+};
+
+export const PERMISSION_LABELS: Record<Permission, { label: string; description: string }> = {
+  'users:manage': { label: 'Manage users', description: 'Invite, edit, deactivate, and remove users.' },
+  'users:read': { label: 'View users', description: 'See the Users list.' },
+  'warehouses:manage': {
+    label: 'Manage warehouses',
+    description: 'Create, edit, and delete warehouses.',
+  },
+  'warehouses:read': { label: 'View warehouses', description: 'See warehouse names and locations.' },
+  'inventory:manage': {
+    label: 'Manage inventory',
+    description: 'Create, edit, and delete inventory items.',
+  },
+  'inventory:read': { label: 'View inventory', description: 'See inventory items and quantities.' },
+  'movements:create': { label: 'Record movements', description: 'Log new inbound/outbound movements.' },
+  'movements:read': { label: 'View movements', description: 'See the movements ledger.' },
+  'movements:manage': {
+    label: 'Edit/delete movements',
+    description: 'Correct or remove a previously recorded movement.',
+  },
+  'analytics:read': { label: 'View analytics', description: 'See the dashboard and reports.' },
 };
 
 export const STATUS_LABELS: Record<string, string> = {

@@ -18,7 +18,7 @@ export async function GET(): Promise<NextResponse> {
       role: ctx.role,
       organizationId: ctx.organizationId,
       accessibleWarehouseIds: ctx.accessibleWarehouseIds,
-      permissions: Object.values(Permission).filter((p) => hasPermission(ctx.role, p)),
+      permissions: Object.values(Permission).filter((p) => hasPermission(ctx, p)),
     });
   } catch (error) {
     return toErrorResponse(error);

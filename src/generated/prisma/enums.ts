@@ -33,3 +33,11 @@ export const InvitationStatus = {
 } as const
 
 export type InvitationStatus = (typeof InvitationStatus)[keyof typeof InvitationStatus]
+
+
+export const PermissionEffect = {
+  GRANT: 'GRANT',
+  REVOKE: 'REVOKE'
+} as const
+
+export type PermissionEffect = (typeof PermissionEffect)[keyof typeof PermissionEffect]

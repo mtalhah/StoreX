@@ -249,6 +249,7 @@ export type UserWhereInput = {
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
   warehouseAssignments?: Prisma.WarehouseAssignmentListRelationFilter
   stockMovements?: Prisma.StockMovementListRelationFilter
+  permissionOverrides?: Prisma.UserPermissionOverrideListRelationFilter
 }
 
 export type UserOrderByWithRelationInput = {
@@ -268,6 +269,7 @@ export type UserOrderByWithRelationInput = {
   organization?: Prisma.OrganizationOrderByWithRelationInput
   warehouseAssignments?: Prisma.WarehouseAssignmentOrderByRelationAggregateInput
   stockMovements?: Prisma.StockMovementOrderByRelationAggregateInput
+  permissionOverrides?: Prisma.UserPermissionOverrideOrderByRelationAggregateInput
 }
 
 export type UserWhereUniqueInput = Prisma.AtLeast<{
@@ -291,6 +293,7 @@ export type UserWhereUniqueInput = Prisma.AtLeast<{
   organization?: Prisma.XOR<Prisma.OrganizationScalarRelationFilter, Prisma.OrganizationWhereInput>
   warehouseAssignments?: Prisma.WarehouseAssignmentListRelationFilter
   stockMovements?: Prisma.StockMovementListRelationFilter
+  permissionOverrides?: Prisma.UserPermissionOverrideListRelationFilter
 }, "id" | "workosUserId" | "organizationId_email">
 
 export type UserOrderByWithAggregationInput = {
@@ -347,6 +350,7 @@ export type UserCreateInput = {
   organization: Prisma.OrganizationCreateNestedOneWithoutUsersInput
   warehouseAssignments?: Prisma.WarehouseAssignmentCreateNestedManyWithoutUserInput
   stockMovements?: Prisma.StockMovementCreateNestedManyWithoutCreatedByInput
+  permissionOverrides?: Prisma.UserPermissionOverrideCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateInput = {
@@ -365,6 +369,7 @@ export type UserUncheckedCreateInput = {
   updatedAt?: Date | string
   warehouseAssignments?: Prisma.WarehouseAssignmentUncheckedCreateNestedManyWithoutUserInput
   stockMovements?: Prisma.StockMovementUncheckedCreateNestedManyWithoutCreatedByInput
+  permissionOverrides?: Prisma.UserPermissionOverrideUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserUpdateInput = {
@@ -383,6 +388,7 @@ export type UserUpdateInput = {
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutUsersNestedInput
   warehouseAssignments?: Prisma.WarehouseAssignmentUpdateManyWithoutUserNestedInput
   stockMovements?: Prisma.StockMovementUpdateManyWithoutCreatedByNestedInput
+  permissionOverrides?: Prisma.UserPermissionOverrideUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateInput = {
@@ -401,6 +407,7 @@ export type UserUncheckedUpdateInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   warehouseAssignments?: Prisma.WarehouseAssignmentUncheckedUpdateManyWithoutUserNestedInput
   stockMovements?: Prisma.StockMovementUncheckedUpdateManyWithoutCreatedByNestedInput
+  permissionOverrides?: Prisma.UserPermissionOverrideUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateManyInput = {
@@ -590,6 +597,20 @@ export type UserUpdateOneRequiredWithoutWarehouseAssignmentsNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutWarehouseAssignmentsInput, Prisma.UserUpdateWithoutWarehouseAssignmentsInput>, Prisma.UserUncheckedUpdateWithoutWarehouseAssignmentsInput>
 }
 
+export type UserCreateNestedOneWithoutPermissionOverridesInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutPermissionOverridesInput, Prisma.UserUncheckedCreateWithoutPermissionOverridesInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutPermissionOverridesInput
+  connect?: Prisma.UserWhereUniqueInput
+}
+
+export type UserUpdateOneRequiredWithoutPermissionOverridesNestedInput = {
+  create?: Prisma.XOR<Prisma.UserCreateWithoutPermissionOverridesInput, Prisma.UserUncheckedCreateWithoutPermissionOverridesInput>
+  connectOrCreate?: Prisma.UserCreateOrConnectWithoutPermissionOverridesInput
+  upsert?: Prisma.UserUpsertWithoutPermissionOverridesInput
+  connect?: Prisma.UserWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.UserUpdateToOneWithWhereWithoutPermissionOverridesInput, Prisma.UserUpdateWithoutPermissionOverridesInput>, Prisma.UserUncheckedUpdateWithoutPermissionOverridesInput>
+}
+
 export type UserCreateNestedOneWithoutStockMovementsInput = {
   create?: Prisma.XOR<Prisma.UserCreateWithoutStockMovementsInput, Prisma.UserUncheckedCreateWithoutStockMovementsInput>
   connectOrCreate?: Prisma.UserCreateOrConnectWithoutStockMovementsInput
@@ -619,6 +640,7 @@ export type UserCreateWithoutOrganizationInput = {
   updatedAt?: Date | string
   warehouseAssignments?: Prisma.WarehouseAssignmentCreateNestedManyWithoutUserInput
   stockMovements?: Prisma.StockMovementCreateNestedManyWithoutCreatedByInput
+  permissionOverrides?: Prisma.UserPermissionOverrideCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutOrganizationInput = {
@@ -636,6 +658,7 @@ export type UserUncheckedCreateWithoutOrganizationInput = {
   updatedAt?: Date | string
   warehouseAssignments?: Prisma.WarehouseAssignmentUncheckedCreateNestedManyWithoutUserInput
   stockMovements?: Prisma.StockMovementUncheckedCreateNestedManyWithoutCreatedByInput
+  permissionOverrides?: Prisma.UserPermissionOverrideUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutOrganizationInput = {
@@ -698,6 +721,7 @@ export type UserCreateWithoutWarehouseAssignmentsInput = {
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutUsersInput
   stockMovements?: Prisma.StockMovementCreateNestedManyWithoutCreatedByInput
+  permissionOverrides?: Prisma.UserPermissionOverrideCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutWarehouseAssignmentsInput = {
@@ -715,6 +739,7 @@ export type UserUncheckedCreateWithoutWarehouseAssignmentsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   stockMovements?: Prisma.StockMovementUncheckedCreateNestedManyWithoutCreatedByInput
+  permissionOverrides?: Prisma.UserPermissionOverrideUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutWarehouseAssignmentsInput = {
@@ -748,6 +773,7 @@ export type UserUpdateWithoutWarehouseAssignmentsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutUsersNestedInput
   stockMovements?: Prisma.StockMovementUpdateManyWithoutCreatedByNestedInput
+  permissionOverrides?: Prisma.UserPermissionOverrideUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutWarehouseAssignmentsInput = {
@@ -764,6 +790,95 @@ export type UserUncheckedUpdateWithoutWarehouseAssignmentsInput = {
   invitedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  stockMovements?: Prisma.StockMovementUncheckedUpdateManyWithoutCreatedByNestedInput
+  permissionOverrides?: Prisma.UserPermissionOverrideUncheckedUpdateManyWithoutUserNestedInput
+}
+
+export type UserCreateWithoutPermissionOverridesInput = {
+  id?: string
+  workosUserId?: string | null
+  email: string
+  firstName?: string | null
+  lastName?: string | null
+  role: $Enums.UserRole
+  isActive?: boolean
+  workosInvitationId?: string | null
+  invitationStatus?: $Enums.InvitationStatus | null
+  invitedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  organization: Prisma.OrganizationCreateNestedOneWithoutUsersInput
+  warehouseAssignments?: Prisma.WarehouseAssignmentCreateNestedManyWithoutUserInput
+  stockMovements?: Prisma.StockMovementCreateNestedManyWithoutCreatedByInput
+}
+
+export type UserUncheckedCreateWithoutPermissionOverridesInput = {
+  id?: string
+  workosUserId?: string | null
+  email: string
+  firstName?: string | null
+  lastName?: string | null
+  role: $Enums.UserRole
+  organizationId: string
+  isActive?: boolean
+  workosInvitationId?: string | null
+  invitationStatus?: $Enums.InvitationStatus | null
+  invitedAt?: Date | string | null
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  warehouseAssignments?: Prisma.WarehouseAssignmentUncheckedCreateNestedManyWithoutUserInput
+  stockMovements?: Prisma.StockMovementUncheckedCreateNestedManyWithoutCreatedByInput
+}
+
+export type UserCreateOrConnectWithoutPermissionOverridesInput = {
+  where: Prisma.UserWhereUniqueInput
+  create: Prisma.XOR<Prisma.UserCreateWithoutPermissionOverridesInput, Prisma.UserUncheckedCreateWithoutPermissionOverridesInput>
+}
+
+export type UserUpsertWithoutPermissionOverridesInput = {
+  update: Prisma.XOR<Prisma.UserUpdateWithoutPermissionOverridesInput, Prisma.UserUncheckedUpdateWithoutPermissionOverridesInput>
+  create: Prisma.XOR<Prisma.UserCreateWithoutPermissionOverridesInput, Prisma.UserUncheckedCreateWithoutPermissionOverridesInput>
+  where?: Prisma.UserWhereInput
+}
+
+export type UserUpdateToOneWithWhereWithoutPermissionOverridesInput = {
+  where?: Prisma.UserWhereInput
+  data: Prisma.XOR<Prisma.UserUpdateWithoutPermissionOverridesInput, Prisma.UserUncheckedUpdateWithoutPermissionOverridesInput>
+}
+
+export type UserUpdateWithoutPermissionOverridesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  workosUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  workosInvitationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  invitationStatus?: Prisma.NullableEnumInvitationStatusFieldUpdateOperationsInput | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  organization?: Prisma.OrganizationUpdateOneRequiredWithoutUsersNestedInput
+  warehouseAssignments?: Prisma.WarehouseAssignmentUpdateManyWithoutUserNestedInput
+  stockMovements?: Prisma.StockMovementUpdateManyWithoutCreatedByNestedInput
+}
+
+export type UserUncheckedUpdateWithoutPermissionOverridesInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  workosUserId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  email?: Prisma.StringFieldUpdateOperationsInput | string
+  firstName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  lastName?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  role?: Prisma.EnumUserRoleFieldUpdateOperationsInput | $Enums.UserRole
+  organizationId?: Prisma.StringFieldUpdateOperationsInput | string
+  isActive?: Prisma.BoolFieldUpdateOperationsInput | boolean
+  workosInvitationId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  invitationStatus?: Prisma.NullableEnumInvitationStatusFieldUpdateOperationsInput | $Enums.InvitationStatus | null
+  invitedAt?: Prisma.NullableDateTimeFieldUpdateOperationsInput | Date | string | null
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  warehouseAssignments?: Prisma.WarehouseAssignmentUncheckedUpdateManyWithoutUserNestedInput
   stockMovements?: Prisma.StockMovementUncheckedUpdateManyWithoutCreatedByNestedInput
 }
 
@@ -782,6 +897,7 @@ export type UserCreateWithoutStockMovementsInput = {
   updatedAt?: Date | string
   organization: Prisma.OrganizationCreateNestedOneWithoutUsersInput
   warehouseAssignments?: Prisma.WarehouseAssignmentCreateNestedManyWithoutUserInput
+  permissionOverrides?: Prisma.UserPermissionOverrideCreateNestedManyWithoutUserInput
 }
 
 export type UserUncheckedCreateWithoutStockMovementsInput = {
@@ -799,6 +915,7 @@ export type UserUncheckedCreateWithoutStockMovementsInput = {
   createdAt?: Date | string
   updatedAt?: Date | string
   warehouseAssignments?: Prisma.WarehouseAssignmentUncheckedCreateNestedManyWithoutUserInput
+  permissionOverrides?: Prisma.UserPermissionOverrideUncheckedCreateNestedManyWithoutUserInput
 }
 
 export type UserCreateOrConnectWithoutStockMovementsInput = {
@@ -832,6 +949,7 @@ export type UserUpdateWithoutStockMovementsInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   organization?: Prisma.OrganizationUpdateOneRequiredWithoutUsersNestedInput
   warehouseAssignments?: Prisma.WarehouseAssignmentUpdateManyWithoutUserNestedInput
+  permissionOverrides?: Prisma.UserPermissionOverrideUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutStockMovementsInput = {
@@ -849,6 +967,7 @@ export type UserUncheckedUpdateWithoutStockMovementsInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   warehouseAssignments?: Prisma.WarehouseAssignmentUncheckedUpdateManyWithoutUserNestedInput
+  permissionOverrides?: Prisma.UserPermissionOverrideUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserCreateManyOrganizationInput = {
@@ -881,6 +1000,7 @@ export type UserUpdateWithoutOrganizationInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   warehouseAssignments?: Prisma.WarehouseAssignmentUpdateManyWithoutUserNestedInput
   stockMovements?: Prisma.StockMovementUpdateManyWithoutCreatedByNestedInput
+  permissionOverrides?: Prisma.UserPermissionOverrideUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateWithoutOrganizationInput = {
@@ -898,6 +1018,7 @@ export type UserUncheckedUpdateWithoutOrganizationInput = {
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   warehouseAssignments?: Prisma.WarehouseAssignmentUncheckedUpdateManyWithoutUserNestedInput
   stockMovements?: Prisma.StockMovementUncheckedUpdateManyWithoutCreatedByNestedInput
+  permissionOverrides?: Prisma.UserPermissionOverrideUncheckedUpdateManyWithoutUserNestedInput
 }
 
 export type UserUncheckedUpdateManyWithoutOrganizationInput = {
@@ -923,11 +1044,13 @@ export type UserUncheckedUpdateManyWithoutOrganizationInput = {
 export type UserCountOutputType = {
   warehouseAssignments: number
   stockMovements: number
+  permissionOverrides: number
 }
 
 export type UserCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
   warehouseAssignments?: boolean | UserCountOutputTypeCountWarehouseAssignmentsArgs
   stockMovements?: boolean | UserCountOutputTypeCountStockMovementsArgs
+  permissionOverrides?: boolean | UserCountOutputTypeCountPermissionOverridesArgs
 }
 
 /**
@@ -954,6 +1077,13 @@ export type UserCountOutputTypeCountStockMovementsArgs<ExtArgs extends runtime.T
   where?: Prisma.StockMovementWhereInput
 }
 
+/**
+ * UserCountOutputType without action
+ */
+export type UserCountOutputTypeCountPermissionOverridesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.UserPermissionOverrideWhereInput
+}
+
 
 export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -972,6 +1102,7 @@ export type UserSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = r
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   warehouseAssignments?: boolean | Prisma.User$warehouseAssignmentsArgs<ExtArgs>
   stockMovements?: boolean | Prisma.User$stockMovementsArgs<ExtArgs>
+  permissionOverrides?: boolean | Prisma.User$permissionOverridesArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["user"]>
 
@@ -1030,6 +1161,7 @@ export type UserInclude<ExtArgs extends runtime.Types.Extensions.InternalArgs = 
   organization?: boolean | Prisma.OrganizationDefaultArgs<ExtArgs>
   warehouseAssignments?: boolean | Prisma.User$warehouseAssignmentsArgs<ExtArgs>
   stockMovements?: boolean | Prisma.User$stockMovementsArgs<ExtArgs>
+  permissionOverrides?: boolean | Prisma.User$permissionOverridesArgs<ExtArgs>
   _count?: boolean | Prisma.UserCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type UserIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -1045,6 +1177,7 @@ export type $UserPayload<ExtArgs extends runtime.Types.Extensions.InternalArgs =
     organization: Prisma.$OrganizationPayload<ExtArgs>
     warehouseAssignments: Prisma.$WarehouseAssignmentPayload<ExtArgs>[]
     stockMovements: Prisma.$StockMovementPayload<ExtArgs>[]
+    permissionOverrides: Prisma.$UserPermissionOverridePayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1470,6 +1603,7 @@ export interface Prisma__UserClient<T, Null = never, ExtArgs extends runtime.Typ
   organization<T extends Prisma.OrganizationDefaultArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.OrganizationDefaultArgs<ExtArgs>>): Prisma.Prisma__OrganizationClient<runtime.Types.Result.GetResult<Prisma.$OrganizationPayload<ExtArgs>, T, "findUniqueOrThrow", GlobalOmitOptions> | Null, Null, ExtArgs, GlobalOmitOptions>
   warehouseAssignments<T extends Prisma.User$warehouseAssignmentsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$warehouseAssignmentsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WarehouseAssignmentPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   stockMovements<T extends Prisma.User$stockMovementsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$stockMovementsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StockMovementPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  permissionOverrides<T extends Prisma.User$permissionOverridesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.User$permissionOverridesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$UserPermissionOverridePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1958,6 +2092,30 @@ export type User$stockMovementsArgs<ExtArgs extends runtime.Types.Extensions.Int
   take?: number
   skip?: number
   distinct?: Prisma.StockMovementScalarFieldEnum | Prisma.StockMovementScalarFieldEnum[]
+}
+
+/**
+ * User.permissionOverrides
+ */
+export type User$permissionOverridesArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the UserPermissionOverride
+   */
+  select?: Prisma.UserPermissionOverrideSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the UserPermissionOverride
+   */
+  omit?: Prisma.UserPermissionOverrideOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.UserPermissionOverrideInclude<ExtArgs> | null
+  where?: Prisma.UserPermissionOverrideWhereInput
+  orderBy?: Prisma.UserPermissionOverrideOrderByWithRelationInput | Prisma.UserPermissionOverrideOrderByWithRelationInput[]
+  cursor?: Prisma.UserPermissionOverrideWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.UserPermissionOverrideScalarFieldEnum | Prisma.UserPermissionOverrideScalarFieldEnum[]
 }
 
 /**

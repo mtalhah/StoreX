@@ -1,4 +1,5 @@
 import type { User } from '@/core/domain/entities';
+import type { Permission } from '../auth/permissions';
 
 /**
  * The one deliberately tenant-UNSCOPED port. It exists only for the sign-in
@@ -9,6 +10,8 @@ import type { User } from '@/core/domain/entities';
 export interface UserWithAccess extends User {
   /** Warehouse ids from assignments; used to build the TenantContext. */
   assignedWarehouseIds: string[];
+  /** Fully-resolved effective permissions — see TenantContext.permissions. */
+  permissions: Permission[];
 }
 
 export interface IdentityRepository {

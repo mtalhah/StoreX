@@ -3,6 +3,7 @@
 import { Loader2 } from 'lucide-react';
 import { useState } from 'react';
 import { toast } from 'sonner';
+import useSWR from 'swr';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -23,11 +24,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import type { UserRole } from '@/core/domain/enums';
-import { apiFetch, ApiError } from '@/lib/client/api';
+import { apiFetch, ApiError, swrFetcher, type ApiResult } from '@/lib/client/api';
+import { useMe } from '@/lib/client/use-me';
 import { useFieldErrors } from '@/lib/client/validation';
 import type { UserRow } from '@/lib/client/types';
 import { ROLE_LABELS } from '@/lib/format';
 import { cn } from '@/lib/utils';
+import { UserPermissionsForm, type UserPermissionsView } from './user-permissions-form';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -94,6 +97,13 @@ function UserForm({
   const [isActive, setIsActive] = useState(user?.isActive ?? true);
   const [busy, setBusy] = useState(false);
   const { errors, setErrors, clearErrors, applyApiError } = useFieldErrors();
+  const { me } = useMe();
+  // Only ADMIN may edit permissions (see PermissionsService), and only for
+  // an already-saved MANAGER/OPERATOR — hidden while the role dropdown above
+  // has a pending, unsaved change so it never edits overrides for a role the
+  // user isn't actually on yet.
+  const showPermissions =
+    user !== null && !isSelf && me?.role === 'ADMIN' && user.role !== 'ADMIN' && role === user.role;
 
   const toggleWarehouse = (id: string) => {
     setSelectedWarehouses((prev) => {
@@ -286,6 +296,16 @@ function UserForm({
             </Select>
           </div>
         )}
+        {showPermissions && user && (
+          <div className="space-y-2 border-t pt-4">
+            <Label>Permissions</Label>
+            <p className="text-xs text-muted-foreground">
+              Grant or revoke individual permissions for this person, on top of what their role
+              normally allows.
+            </p>
+            <InlineUserPermissions userId={user.id} />
+          </div>
+        )}
         <DialogFooter>
           <Button type="button" variant="outline" disabled={busy} onClick={() => onOpenChange(false)}>
             Cancel
@@ -297,5 +317,19 @@ function UserForm({
         </DialogFooter>
       </form>
     </>
+  );
+}
+
+function InlineUserPermissions({ userId }: { userId: string }) {
+  const { data, isLoading, mutate } = useSWR<ApiResult<UserPermissionsView>>(
+    `/api/v1/users/${userId}/permissions`,
+    swrFetcher<UserPermissionsView>,
+  );
+
+  if (isLoading || !data) {
+    return <p className="py-4 text-center text-sm text-muted-foreground">Loading…</p>;
+  }
+  return (
+    <UserPermissionsForm key={userId} userId={userId} initial={data.data} onSaved={() => mutate()} />
   );
 }

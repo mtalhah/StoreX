@@ -42,6 +42,11 @@ enum InvitationStatus {
   SKIPPED
 }
 
+enum PermissionEffect {
+  GRANT
+  REVOKE
+}
+
 model Organization {
   id           String   @id @default(cuid())
   /// WorkOS organization id (org_...) once linked; nullable for self-serve orgs.
@@ -50,10 +55,11 @@ model Organization {
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
 
-  users          User[]
-  warehouses     Warehouse[]
-  inventoryItems InventoryItem[]
-  stockMovements StockMovement[]
+  users           User[]
+  warehouses      Warehouse[]
+  inventoryItems  InventoryItem[]
+  stockMovements  StockMovement[]
+  rolePermissions RolePermission[]
 
   @@map("organizations")
 }
@@ -80,9 +86,10 @@ model User {
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 
-  organization         Organization          @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  organization         Organization             @relation(fields: [organizationId], references: [id], onDelete: Cascade)
   warehouseAssignments WarehouseAssignment[]
   stockMovements       StockMovement[]
+  permissionOverrides  UserPermissionOverride[]
 
   // An email is unique within a tenant, not globally: the same person may be
   // provisioned into two organizations.
@@ -127,6 +134,42 @@ model WarehouseAssignment {
   @@id([userId, warehouseId])
   @@index([warehouseId])
   @@map("warehouse_assignments")
+}
+
+/// Org-scoped, editable permission set for MANAGER/OPERATOR. Presence of a
+/// row = granted. ADMIN is never represented here — its permissions stay the
+/// fixed hardcoded list (see core/application/auth/permissions.ts) and are
+/// not editable, to guard against an org locking itself out of user
+/// management.
+model RolePermission {
+  id             String   @id @default(cuid())
+  organizationId String
+  role           UserRole
+  permission     String
+  createdAt      DateTime @default(now())
+
+  organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, role, permission])
+  @@index([organizationId, role])
+  @@map("role_permissions")
+}
+
+/// Per-user exception on top of their role's effective permission set.
+/// GRANT adds a permission the role wouldn't otherwise have; REVOKE removes
+/// one it would. Only valid for MANAGER/OPERATOR users — the service layer
+/// rejects overrides targeting an ADMIN user.
+model UserPermissionOverride {
+  id         String           @id @default(cuid())
+  userId     String
+  permission String
+  effect     PermissionEffect
+  createdAt  DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, permission])
+  @@map("user_permission_overrides")
 }
 
 model InventoryItem {

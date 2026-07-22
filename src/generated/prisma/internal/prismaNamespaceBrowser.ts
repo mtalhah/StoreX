@@ -55,6 +55,8 @@ export const ModelName = {
   User: 'User',
   Warehouse: 'Warehouse',
   WarehouseAssignment: 'WarehouseAssignment',
+  RolePermission: 'RolePermission',
+  UserPermissionOverride: 'UserPermissionOverride',
   InventoryItem: 'InventoryItem',
   StockMovement: 'StockMovement'
 } as const
@@ -125,6 +127,28 @@ export const WarehouseAssignmentScalarFieldEnum = {
 } as const
 
 export type WarehouseAssignmentScalarFieldEnum = (typeof WarehouseAssignmentScalarFieldEnum)[keyof typeof WarehouseAssignmentScalarFieldEnum]
+
+
+export const RolePermissionScalarFieldEnum = {
+  id: 'id',
+  organizationId: 'organizationId',
+  role: 'role',
+  permission: 'permission',
+  createdAt: 'createdAt'
+} as const
+
+export type RolePermissionScalarFieldEnum = (typeof RolePermissionScalarFieldEnum)[keyof typeof RolePermissionScalarFieldEnum]
+
+
+export const UserPermissionOverrideScalarFieldEnum = {
+  id: 'id',
+  userId: 'userId',
+  permission: 'permission',
+  effect: 'effect',
+  createdAt: 'createdAt'
+} as const
+
+export type UserPermissionOverrideScalarFieldEnum = (typeof UserPermissionOverrideScalarFieldEnum)[keyof typeof UserPermissionOverrideScalarFieldEnum]
 
 
 export const InventoryItemScalarFieldEnum = {

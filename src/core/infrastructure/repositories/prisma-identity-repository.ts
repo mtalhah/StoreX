@@ -1,3 +1,4 @@
+import { resolveEffectivePermissions, type Permission } from '@/core/application/auth/permissions';
 import type { Prisma } from '@/generated/prisma/client';
 import type { PrismaClient } from '../db/prisma';
 import type {
@@ -7,14 +8,10 @@ import type {
 
 const accessInclude = {
   warehouseAssignments: { select: { warehouseId: true } },
+  permissionOverrides: { select: { permission: true, effect: true } },
 } satisfies Prisma.UserInclude;
 
 type UserRow = Prisma.UserGetPayload<{ include: typeof accessInclude }>;
-
-function toDto(row: UserRow): UserWithAccess {
-  const { warehouseAssignments, ...user } = row;
-  return { ...user, assignedWarehouseIds: warehouseAssignments.map((a) => a.warehouseId) };
-}
 
 /**
  * Sign-in bootstrap only — see the port's contract note. Used before a
@@ -28,7 +25,7 @@ export class PrismaIdentityRepository implements IdentityRepository {
       where: { workosUserId },
       include: accessInclude,
     });
-    return row ? toDto(row) : null;
+    return row ? this.toDto(row) : null;
   }
 
   async findUnlinkedByEmail(email: string): Promise<UserWithAccess | null> {
@@ -40,7 +37,7 @@ export class PrismaIdentityRepository implements IdentityRepository {
       orderBy: { createdAt: 'asc' },
       include: accessInclude,
     });
-    return row ? toDto(row) : null;
+    return row ? this.toDto(row) : null;
   }
 
   async linkWorkosUser(
@@ -61,7 +58,7 @@ export class PrismaIdentityRepository implements IdentityRepository {
       },
       include: accessInclude,
     });
-    return toDto(row);
+    return this.toDto(row);
   }
 
   async createOrganizationWithAdmin(input: {
@@ -88,6 +85,39 @@ export class PrismaIdentityRepository implements IdentityRepository {
       },
       include: accessInclude,
     });
-    return toDto(row);
+    return this.toDto(row);
+  }
+
+  /**
+   * ADMIN never has RolePermission rows (its permissions are fixed — see
+   * permissions.ts), so the role-baseline lookup is skipped entirely for it.
+   */
+  private async toDto(row: UserRow): Promise<UserWithAccess> {
+    const { warehouseAssignments, permissionOverrides, ...user } = row;
+
+    const rolePermissions =
+      user.role === 'ADMIN'
+        ? []
+        : (
+            await this.db.rolePermission.findMany({
+              where: { organizationId: user.organizationId, role: user.role },
+              select: { permission: true },
+            })
+          ).map((r) => r.permission as Permission);
+
+    const permissions = resolveEffectivePermissions(
+      user.role,
+      rolePermissions,
+      permissionOverrides.map((o) => ({
+        permission: o.permission as Permission,
+        effect: o.effect,
+      })),
+    );
+
+    return {
+      ...user,
+      assignedWarehouseIds: warehouseAssignments.map((a) => a.warehouseId),
+      permissions,
+    };
   }
 }

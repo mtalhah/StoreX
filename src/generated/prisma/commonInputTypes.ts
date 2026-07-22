@@ -209,6 +209,23 @@ export type IntWithAggregatesFilter<$PrismaModel = never> = {
   _max?: Prisma.NestedIntFilter<$PrismaModel>
 }
 
+export type EnumPermissionEffectFilter<$PrismaModel = never> = {
+  equals?: $Enums.PermissionEffect | Prisma.EnumPermissionEffectFieldRefInput<$PrismaModel>
+  in?: $Enums.PermissionEffect[] | Prisma.ListEnumPermissionEffectFieldRefInput<$PrismaModel>
+  notIn?: $Enums.PermissionEffect[] | Prisma.ListEnumPermissionEffectFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumPermissionEffectFilter<$PrismaModel> | $Enums.PermissionEffect
+}
+
+export type EnumPermissionEffectWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.PermissionEffect | Prisma.EnumPermissionEffectFieldRefInput<$PrismaModel>
+  in?: $Enums.PermissionEffect[] | Prisma.ListEnumPermissionEffectFieldRefInput<$PrismaModel>
+  notIn?: $Enums.PermissionEffect[] | Prisma.ListEnumPermissionEffectFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumPermissionEffectWithAggregatesFilter<$PrismaModel> | $Enums.PermissionEffect
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumPermissionEffectFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumPermissionEffectFilter<$PrismaModel>
+}
+
 export type DecimalFilter<$PrismaModel = never> = {
   equals?: runtime.Decimal | runtime.DecimalJsLike | number | string | Prisma.DecimalFieldRefInput<$PrismaModel>
   in?: runtime.Decimal[] | runtime.DecimalJsLike[] | number[] | string[] | Prisma.ListDecimalFieldRefInput<$PrismaModel>
@@ -459,6 +476,23 @@ export type NestedFloatFilter<$PrismaModel = never> = {
   gt?: number | Prisma.FloatFieldRefInput<$PrismaModel>
   gte?: number | Prisma.FloatFieldRefInput<$PrismaModel>
   not?: Prisma.NestedFloatFilter<$PrismaModel> | number
+}
+
+export type NestedEnumPermissionEffectFilter<$PrismaModel = never> = {
+  equals?: $Enums.PermissionEffect | Prisma.EnumPermissionEffectFieldRefInput<$PrismaModel>
+  in?: $Enums.PermissionEffect[] | Prisma.ListEnumPermissionEffectFieldRefInput<$PrismaModel>
+  notIn?: $Enums.PermissionEffect[] | Prisma.ListEnumPermissionEffectFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumPermissionEffectFilter<$PrismaModel> | $Enums.PermissionEffect
+}
+
+export type NestedEnumPermissionEffectWithAggregatesFilter<$PrismaModel = never> = {
+  equals?: $Enums.PermissionEffect | Prisma.EnumPermissionEffectFieldRefInput<$PrismaModel>
+  in?: $Enums.PermissionEffect[] | Prisma.ListEnumPermissionEffectFieldRefInput<$PrismaModel>
+  notIn?: $Enums.PermissionEffect[] | Prisma.ListEnumPermissionEffectFieldRefInput<$PrismaModel>
+  not?: Prisma.NestedEnumPermissionEffectWithAggregatesFilter<$PrismaModel> | $Enums.PermissionEffect
+  _count?: Prisma.NestedIntFilter<$PrismaModel>
+  _min?: Prisma.NestedEnumPermissionEffectFilter<$PrismaModel>
+  _max?: Prisma.NestedEnumPermissionEffectFilter<$PrismaModel>
 }
 
 export type NestedDecimalFilter<$PrismaModel = never> = {

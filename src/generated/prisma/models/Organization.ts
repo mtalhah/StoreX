@@ -186,6 +186,7 @@ export type OrganizationWhereInput = {
   warehouses?: Prisma.WarehouseListRelationFilter
   inventoryItems?: Prisma.InventoryItemListRelationFilter
   stockMovements?: Prisma.StockMovementListRelationFilter
+  rolePermissions?: Prisma.RolePermissionListRelationFilter
 }
 
 export type OrganizationOrderByWithRelationInput = {
@@ -198,6 +199,7 @@ export type OrganizationOrderByWithRelationInput = {
   warehouses?: Prisma.WarehouseOrderByRelationAggregateInput
   inventoryItems?: Prisma.InventoryItemOrderByRelationAggregateInput
   stockMovements?: Prisma.StockMovementOrderByRelationAggregateInput
+  rolePermissions?: Prisma.RolePermissionOrderByRelationAggregateInput
 }
 
 export type OrganizationWhereUniqueInput = Prisma.AtLeast<{
@@ -213,6 +215,7 @@ export type OrganizationWhereUniqueInput = Prisma.AtLeast<{
   warehouses?: Prisma.WarehouseListRelationFilter
   inventoryItems?: Prisma.InventoryItemListRelationFilter
   stockMovements?: Prisma.StockMovementListRelationFilter
+  rolePermissions?: Prisma.RolePermissionListRelationFilter
 }, "id" | "workosOrgId">
 
 export type OrganizationOrderByWithAggregationInput = {
@@ -247,6 +250,7 @@ export type OrganizationCreateInput = {
   warehouses?: Prisma.WarehouseCreateNestedManyWithoutOrganizationInput
   inventoryItems?: Prisma.InventoryItemCreateNestedManyWithoutOrganizationInput
   stockMovements?: Prisma.StockMovementCreateNestedManyWithoutOrganizationInput
+  rolePermissions?: Prisma.RolePermissionCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateInput = {
@@ -259,6 +263,7 @@ export type OrganizationUncheckedCreateInput = {
   warehouses?: Prisma.WarehouseUncheckedCreateNestedManyWithoutOrganizationInput
   inventoryItems?: Prisma.InventoryItemUncheckedCreateNestedManyWithoutOrganizationInput
   stockMovements?: Prisma.StockMovementUncheckedCreateNestedManyWithoutOrganizationInput
+  rolePermissions?: Prisma.RolePermissionUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUpdateInput = {
@@ -271,6 +276,7 @@ export type OrganizationUpdateInput = {
   warehouses?: Prisma.WarehouseUpdateManyWithoutOrganizationNestedInput
   inventoryItems?: Prisma.InventoryItemUpdateManyWithoutOrganizationNestedInput
   stockMovements?: Prisma.StockMovementUpdateManyWithoutOrganizationNestedInput
+  rolePermissions?: Prisma.RolePermissionUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateInput = {
@@ -283,6 +289,7 @@ export type OrganizationUncheckedUpdateInput = {
   warehouses?: Prisma.WarehouseUncheckedUpdateManyWithoutOrganizationNestedInput
   inventoryItems?: Prisma.InventoryItemUncheckedUpdateManyWithoutOrganizationNestedInput
   stockMovements?: Prisma.StockMovementUncheckedUpdateManyWithoutOrganizationNestedInput
+  rolePermissions?: Prisma.RolePermissionUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateManyInput = {
@@ -378,6 +385,20 @@ export type OrganizationUpdateOneRequiredWithoutWarehousesNestedInput = {
   update?: Prisma.XOR<Prisma.XOR<Prisma.OrganizationUpdateToOneWithWhereWithoutWarehousesInput, Prisma.OrganizationUpdateWithoutWarehousesInput>, Prisma.OrganizationUncheckedUpdateWithoutWarehousesInput>
 }
 
+export type OrganizationCreateNestedOneWithoutRolePermissionsInput = {
+  create?: Prisma.XOR<Prisma.OrganizationCreateWithoutRolePermissionsInput, Prisma.OrganizationUncheckedCreateWithoutRolePermissionsInput>
+  connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutRolePermissionsInput
+  connect?: Prisma.OrganizationWhereUniqueInput
+}
+
+export type OrganizationUpdateOneRequiredWithoutRolePermissionsNestedInput = {
+  create?: Prisma.XOR<Prisma.OrganizationCreateWithoutRolePermissionsInput, Prisma.OrganizationUncheckedCreateWithoutRolePermissionsInput>
+  connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutRolePermissionsInput
+  upsert?: Prisma.OrganizationUpsertWithoutRolePermissionsInput
+  connect?: Prisma.OrganizationWhereUniqueInput
+  update?: Prisma.XOR<Prisma.XOR<Prisma.OrganizationUpdateToOneWithWhereWithoutRolePermissionsInput, Prisma.OrganizationUpdateWithoutRolePermissionsInput>, Prisma.OrganizationUncheckedUpdateWithoutRolePermissionsInput>
+}
+
 export type OrganizationCreateNestedOneWithoutInventoryItemsInput = {
   create?: Prisma.XOR<Prisma.OrganizationCreateWithoutInventoryItemsInput, Prisma.OrganizationUncheckedCreateWithoutInventoryItemsInput>
   connectOrCreate?: Prisma.OrganizationCreateOrConnectWithoutInventoryItemsInput
@@ -415,6 +436,7 @@ export type OrganizationCreateWithoutUsersInput = {
   warehouses?: Prisma.WarehouseCreateNestedManyWithoutOrganizationInput
   inventoryItems?: Prisma.InventoryItemCreateNestedManyWithoutOrganizationInput
   stockMovements?: Prisma.StockMovementCreateNestedManyWithoutOrganizationInput
+  rolePermissions?: Prisma.RolePermissionCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutUsersInput = {
@@ -426,6 +448,7 @@ export type OrganizationUncheckedCreateWithoutUsersInput = {
   warehouses?: Prisma.WarehouseUncheckedCreateNestedManyWithoutOrganizationInput
   inventoryItems?: Prisma.InventoryItemUncheckedCreateNestedManyWithoutOrganizationInput
   stockMovements?: Prisma.StockMovementUncheckedCreateNestedManyWithoutOrganizationInput
+  rolePermissions?: Prisma.RolePermissionUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutUsersInput = {
@@ -453,6 +476,7 @@ export type OrganizationUpdateWithoutUsersInput = {
   warehouses?: Prisma.WarehouseUpdateManyWithoutOrganizationNestedInput
   inventoryItems?: Prisma.InventoryItemUpdateManyWithoutOrganizationNestedInput
   stockMovements?: Prisma.StockMovementUpdateManyWithoutOrganizationNestedInput
+  rolePermissions?: Prisma.RolePermissionUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutUsersInput = {
@@ -464,6 +488,7 @@ export type OrganizationUncheckedUpdateWithoutUsersInput = {
   warehouses?: Prisma.WarehouseUncheckedUpdateManyWithoutOrganizationNestedInput
   inventoryItems?: Prisma.InventoryItemUncheckedUpdateManyWithoutOrganizationNestedInput
   stockMovements?: Prisma.StockMovementUncheckedUpdateManyWithoutOrganizationNestedInput
+  rolePermissions?: Prisma.RolePermissionUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutWarehousesInput = {
@@ -475,6 +500,7 @@ export type OrganizationCreateWithoutWarehousesInput = {
   users?: Prisma.UserCreateNestedManyWithoutOrganizationInput
   inventoryItems?: Prisma.InventoryItemCreateNestedManyWithoutOrganizationInput
   stockMovements?: Prisma.StockMovementCreateNestedManyWithoutOrganizationInput
+  rolePermissions?: Prisma.RolePermissionCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutWarehousesInput = {
@@ -486,6 +512,7 @@ export type OrganizationUncheckedCreateWithoutWarehousesInput = {
   users?: Prisma.UserUncheckedCreateNestedManyWithoutOrganizationInput
   inventoryItems?: Prisma.InventoryItemUncheckedCreateNestedManyWithoutOrganizationInput
   stockMovements?: Prisma.StockMovementUncheckedCreateNestedManyWithoutOrganizationInput
+  rolePermissions?: Prisma.RolePermissionUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutWarehousesInput = {
@@ -513,6 +540,7 @@ export type OrganizationUpdateWithoutWarehousesInput = {
   users?: Prisma.UserUpdateManyWithoutOrganizationNestedInput
   inventoryItems?: Prisma.InventoryItemUpdateManyWithoutOrganizationNestedInput
   stockMovements?: Prisma.StockMovementUpdateManyWithoutOrganizationNestedInput
+  rolePermissions?: Prisma.RolePermissionUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutWarehousesInput = {
@@ -522,6 +550,71 @@ export type OrganizationUncheckedUpdateWithoutWarehousesInput = {
   createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
   users?: Prisma.UserUncheckedUpdateManyWithoutOrganizationNestedInput
+  inventoryItems?: Prisma.InventoryItemUncheckedUpdateManyWithoutOrganizationNestedInput
+  stockMovements?: Prisma.StockMovementUncheckedUpdateManyWithoutOrganizationNestedInput
+  rolePermissions?: Prisma.RolePermissionUncheckedUpdateManyWithoutOrganizationNestedInput
+}
+
+export type OrganizationCreateWithoutRolePermissionsInput = {
+  id?: string
+  workosOrgId?: string | null
+  name: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  users?: Prisma.UserCreateNestedManyWithoutOrganizationInput
+  warehouses?: Prisma.WarehouseCreateNestedManyWithoutOrganizationInput
+  inventoryItems?: Prisma.InventoryItemCreateNestedManyWithoutOrganizationInput
+  stockMovements?: Prisma.StockMovementCreateNestedManyWithoutOrganizationInput
+}
+
+export type OrganizationUncheckedCreateWithoutRolePermissionsInput = {
+  id?: string
+  workosOrgId?: string | null
+  name: string
+  createdAt?: Date | string
+  updatedAt?: Date | string
+  users?: Prisma.UserUncheckedCreateNestedManyWithoutOrganizationInput
+  warehouses?: Prisma.WarehouseUncheckedCreateNestedManyWithoutOrganizationInput
+  inventoryItems?: Prisma.InventoryItemUncheckedCreateNestedManyWithoutOrganizationInput
+  stockMovements?: Prisma.StockMovementUncheckedCreateNestedManyWithoutOrganizationInput
+}
+
+export type OrganizationCreateOrConnectWithoutRolePermissionsInput = {
+  where: Prisma.OrganizationWhereUniqueInput
+  create: Prisma.XOR<Prisma.OrganizationCreateWithoutRolePermissionsInput, Prisma.OrganizationUncheckedCreateWithoutRolePermissionsInput>
+}
+
+export type OrganizationUpsertWithoutRolePermissionsInput = {
+  update: Prisma.XOR<Prisma.OrganizationUpdateWithoutRolePermissionsInput, Prisma.OrganizationUncheckedUpdateWithoutRolePermissionsInput>
+  create: Prisma.XOR<Prisma.OrganizationCreateWithoutRolePermissionsInput, Prisma.OrganizationUncheckedCreateWithoutRolePermissionsInput>
+  where?: Prisma.OrganizationWhereInput
+}
+
+export type OrganizationUpdateToOneWithWhereWithoutRolePermissionsInput = {
+  where?: Prisma.OrganizationWhereInput
+  data: Prisma.XOR<Prisma.OrganizationUpdateWithoutRolePermissionsInput, Prisma.OrganizationUncheckedUpdateWithoutRolePermissionsInput>
+}
+
+export type OrganizationUpdateWithoutRolePermissionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  workosOrgId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  users?: Prisma.UserUpdateManyWithoutOrganizationNestedInput
+  warehouses?: Prisma.WarehouseUpdateManyWithoutOrganizationNestedInput
+  inventoryItems?: Prisma.InventoryItemUpdateManyWithoutOrganizationNestedInput
+  stockMovements?: Prisma.StockMovementUpdateManyWithoutOrganizationNestedInput
+}
+
+export type OrganizationUncheckedUpdateWithoutRolePermissionsInput = {
+  id?: Prisma.StringFieldUpdateOperationsInput | string
+  workosOrgId?: Prisma.NullableStringFieldUpdateOperationsInput | string | null
+  name?: Prisma.StringFieldUpdateOperationsInput | string
+  createdAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  updatedAt?: Prisma.DateTimeFieldUpdateOperationsInput | Date | string
+  users?: Prisma.UserUncheckedUpdateManyWithoutOrganizationNestedInput
+  warehouses?: Prisma.WarehouseUncheckedUpdateManyWithoutOrganizationNestedInput
   inventoryItems?: Prisma.InventoryItemUncheckedUpdateManyWithoutOrganizationNestedInput
   stockMovements?: Prisma.StockMovementUncheckedUpdateManyWithoutOrganizationNestedInput
 }
@@ -535,6 +628,7 @@ export type OrganizationCreateWithoutInventoryItemsInput = {
   users?: Prisma.UserCreateNestedManyWithoutOrganizationInput
   warehouses?: Prisma.WarehouseCreateNestedManyWithoutOrganizationInput
   stockMovements?: Prisma.StockMovementCreateNestedManyWithoutOrganizationInput
+  rolePermissions?: Prisma.RolePermissionCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutInventoryItemsInput = {
@@ -546,6 +640,7 @@ export type OrganizationUncheckedCreateWithoutInventoryItemsInput = {
   users?: Prisma.UserUncheckedCreateNestedManyWithoutOrganizationInput
   warehouses?: Prisma.WarehouseUncheckedCreateNestedManyWithoutOrganizationInput
   stockMovements?: Prisma.StockMovementUncheckedCreateNestedManyWithoutOrganizationInput
+  rolePermissions?: Prisma.RolePermissionUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutInventoryItemsInput = {
@@ -573,6 +668,7 @@ export type OrganizationUpdateWithoutInventoryItemsInput = {
   users?: Prisma.UserUpdateManyWithoutOrganizationNestedInput
   warehouses?: Prisma.WarehouseUpdateManyWithoutOrganizationNestedInput
   stockMovements?: Prisma.StockMovementUpdateManyWithoutOrganizationNestedInput
+  rolePermissions?: Prisma.RolePermissionUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutInventoryItemsInput = {
@@ -584,6 +680,7 @@ export type OrganizationUncheckedUpdateWithoutInventoryItemsInput = {
   users?: Prisma.UserUncheckedUpdateManyWithoutOrganizationNestedInput
   warehouses?: Prisma.WarehouseUncheckedUpdateManyWithoutOrganizationNestedInput
   stockMovements?: Prisma.StockMovementUncheckedUpdateManyWithoutOrganizationNestedInput
+  rolePermissions?: Prisma.RolePermissionUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationCreateWithoutStockMovementsInput = {
@@ -595,6 +692,7 @@ export type OrganizationCreateWithoutStockMovementsInput = {
   users?: Prisma.UserCreateNestedManyWithoutOrganizationInput
   warehouses?: Prisma.WarehouseCreateNestedManyWithoutOrganizationInput
   inventoryItems?: Prisma.InventoryItemCreateNestedManyWithoutOrganizationInput
+  rolePermissions?: Prisma.RolePermissionCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationUncheckedCreateWithoutStockMovementsInput = {
@@ -606,6 +704,7 @@ export type OrganizationUncheckedCreateWithoutStockMovementsInput = {
   users?: Prisma.UserUncheckedCreateNestedManyWithoutOrganizationInput
   warehouses?: Prisma.WarehouseUncheckedCreateNestedManyWithoutOrganizationInput
   inventoryItems?: Prisma.InventoryItemUncheckedCreateNestedManyWithoutOrganizationInput
+  rolePermissions?: Prisma.RolePermissionUncheckedCreateNestedManyWithoutOrganizationInput
 }
 
 export type OrganizationCreateOrConnectWithoutStockMovementsInput = {
@@ -633,6 +732,7 @@ export type OrganizationUpdateWithoutStockMovementsInput = {
   users?: Prisma.UserUpdateManyWithoutOrganizationNestedInput
   warehouses?: Prisma.WarehouseUpdateManyWithoutOrganizationNestedInput
   inventoryItems?: Prisma.InventoryItemUpdateManyWithoutOrganizationNestedInput
+  rolePermissions?: Prisma.RolePermissionUpdateManyWithoutOrganizationNestedInput
 }
 
 export type OrganizationUncheckedUpdateWithoutStockMovementsInput = {
@@ -644,6 +744,7 @@ export type OrganizationUncheckedUpdateWithoutStockMovementsInput = {
   users?: Prisma.UserUncheckedUpdateManyWithoutOrganizationNestedInput
   warehouses?: Prisma.WarehouseUncheckedUpdateManyWithoutOrganizationNestedInput
   inventoryItems?: Prisma.InventoryItemUncheckedUpdateManyWithoutOrganizationNestedInput
+  rolePermissions?: Prisma.RolePermissionUncheckedUpdateManyWithoutOrganizationNestedInput
 }
 
 
@@ -656,6 +757,7 @@ export type OrganizationCountOutputType = {
   warehouses: number
   inventoryItems: number
   stockMovements: number
+  rolePermissions: number
 }
 
 export type OrganizationCountOutputTypeSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
@@ -663,6 +765,7 @@ export type OrganizationCountOutputTypeSelect<ExtArgs extends runtime.Types.Exte
   warehouses?: boolean | OrganizationCountOutputTypeCountWarehousesArgs
   inventoryItems?: boolean | OrganizationCountOutputTypeCountInventoryItemsArgs
   stockMovements?: boolean | OrganizationCountOutputTypeCountStockMovementsArgs
+  rolePermissions?: boolean | OrganizationCountOutputTypeCountRolePermissionsArgs
 }
 
 /**
@@ -703,6 +806,13 @@ export type OrganizationCountOutputTypeCountStockMovementsArgs<ExtArgs extends r
   where?: Prisma.StockMovementWhereInput
 }
 
+/**
+ * OrganizationCountOutputType without action
+ */
+export type OrganizationCountOutputTypeCountRolePermissionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  where?: Prisma.RolePermissionWhereInput
+}
+
 
 export type OrganizationSelect<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = runtime.Types.Extensions.GetSelect<{
   id?: boolean
@@ -714,6 +824,7 @@ export type OrganizationSelect<ExtArgs extends runtime.Types.Extensions.Internal
   warehouses?: boolean | Prisma.Organization$warehousesArgs<ExtArgs>
   inventoryItems?: boolean | Prisma.Organization$inventoryItemsArgs<ExtArgs>
   stockMovements?: boolean | Prisma.Organization$stockMovementsArgs<ExtArgs>
+  rolePermissions?: boolean | Prisma.Organization$rolePermissionsArgs<ExtArgs>
   _count?: boolean | Prisma.OrganizationCountOutputTypeDefaultArgs<ExtArgs>
 }, ExtArgs["result"]["organization"]>
 
@@ -747,6 +858,7 @@ export type OrganizationInclude<ExtArgs extends runtime.Types.Extensions.Interna
   warehouses?: boolean | Prisma.Organization$warehousesArgs<ExtArgs>
   inventoryItems?: boolean | Prisma.Organization$inventoryItemsArgs<ExtArgs>
   stockMovements?: boolean | Prisma.Organization$stockMovementsArgs<ExtArgs>
+  rolePermissions?: boolean | Prisma.Organization$rolePermissionsArgs<ExtArgs>
   _count?: boolean | Prisma.OrganizationCountOutputTypeDefaultArgs<ExtArgs>
 }
 export type OrganizationIncludeCreateManyAndReturn<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {}
@@ -759,6 +871,7 @@ export type $OrganizationPayload<ExtArgs extends runtime.Types.Extensions.Intern
     warehouses: Prisma.$WarehousePayload<ExtArgs>[]
     inventoryItems: Prisma.$InventoryItemPayload<ExtArgs>[]
     stockMovements: Prisma.$StockMovementPayload<ExtArgs>[]
+    rolePermissions: Prisma.$RolePermissionPayload<ExtArgs>[]
   }
   scalars: runtime.Types.Extensions.GetPayloadResult<{
     id: string
@@ -1167,6 +1280,7 @@ export interface Prisma__OrganizationClient<T, Null = never, ExtArgs extends run
   warehouses<T extends Prisma.Organization$warehousesArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Organization$warehousesArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$WarehousePayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   inventoryItems<T extends Prisma.Organization$inventoryItemsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Organization$inventoryItemsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$InventoryItemPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   stockMovements<T extends Prisma.Organization$stockMovementsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Organization$stockMovementsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$StockMovementPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
+  rolePermissions<T extends Prisma.Organization$rolePermissionsArgs<ExtArgs> = {}>(args?: Prisma.Subset<T, Prisma.Organization$rolePermissionsArgs<ExtArgs>>): Prisma.PrismaPromise<runtime.Types.Result.GetResult<Prisma.$RolePermissionPayload<ExtArgs>, T, "findMany", GlobalOmitOptions> | Null>
   /**
    * Attaches callbacks for the resolution and/or rejection of the Promise.
    * @param onfulfilled The callback to execute when the Promise is resolved.
@@ -1687,6 +1801,30 @@ export type Organization$stockMovementsArgs<ExtArgs extends runtime.Types.Extens
   take?: number
   skip?: number
   distinct?: Prisma.StockMovementScalarFieldEnum | Prisma.StockMovementScalarFieldEnum[]
+}
+
+/**
+ * Organization.rolePermissions
+ */
+export type Organization$rolePermissionsArgs<ExtArgs extends runtime.Types.Extensions.InternalArgs = runtime.Types.Extensions.DefaultArgs> = {
+  /**
+   * Select specific fields to fetch from the RolePermission
+   */
+  select?: Prisma.RolePermissionSelect<ExtArgs> | null
+  /**
+   * Omit specific fields from the RolePermission
+   */
+  omit?: Prisma.RolePermissionOmit<ExtArgs> | null
+  /**
+   * Choose, which related nodes to fetch as well
+   */
+  include?: Prisma.RolePermissionInclude<ExtArgs> | null
+  where?: Prisma.RolePermissionWhereInput
+  orderBy?: Prisma.RolePermissionOrderByWithRelationInput | Prisma.RolePermissionOrderByWithRelationInput[]
+  cursor?: Prisma.RolePermissionWhereUniqueInput
+  take?: number
+  skip?: number
+  distinct?: Prisma.RolePermissionScalarFieldEnum | Prisma.RolePermissionScalarFieldEnum[]
 }
 
 /**

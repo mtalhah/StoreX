@@ -15,7 +15,7 @@ import { getTenantContext } from './session';
  */
 export async function requirePagePermission(permission: Permission): Promise<TenantContext> {
   const ctx = await getTenantContext();
-  if (!hasPermission(ctx.role, permission)) {
+  if (!hasPermission(ctx, permission)) {
     redirect(defaultRouteFor());
   }
   return ctx;

@@ -17,6 +17,24 @@ import { MovementType, PrismaClient, UserRole } from '../src/generated/prisma/cl
 const adapter = new PrismaPg({ connectionString: process.env.DATABASE_URL! });
 const prisma = new PrismaClient({ adapter });
 
+const MANAGER_DEFAULT_PERMISSIONS = [
+  'warehouses:read',
+  'inventory:manage',
+  'inventory:read',
+  'movements:create',
+  'movements:read',
+  'movements:manage',
+  'analytics:read',
+];
+const OPERATOR_DEFAULT_PERMISSIONS = [
+  'warehouses:read',
+  'inventory:manage',
+  'inventory:read',
+  'movements:create',
+  'movements:read',
+  'analytics:read',
+];
+
 // Cleans up the old single-tenant demo seed this file replaces.
 const LEGACY_DEMO_ORG_ID = 'org_demo_acme';
 
@@ -140,24 +158,22 @@ const pvpSeed: OrgSeed = {
 };
 
 const MAJESTIC_ADMIN = 'usr_majestic_admin';
-const MAJESTIC_OPERATOR = 'usr_majestic_operator';
+const MAJESTIC_MANAGER = 'usr_majestic_manager';
 
 const majesticSeed: OrgSeed = {
   orgId: 'org_majestic_electronics',
   orgName: 'Majestic Electronics',
   users: [
     { id: MAJESTIC_ADMIN, email: 'nazrinthoufiq@gmail.com', role: UserRole.ADMIN },
-    { id: MAJESTIC_OPERATOR, email: 'tazubair@gmail.com', role: UserRole.OPERATOR },
+    { id: MAJESTIC_MANAGER, email: 'tazubair@gmail.com', role: UserRole.MANAGER },
   ],
-  assignments: [[MAJESTIC_OPERATOR, 'wh_majestic_main']],
+  assignments: [
+    [MAJESTIC_MANAGER, 'wh_majestic_main'],
+    [MAJESTIC_MANAGER, 'wh_majestic_east'],
+  ],
   warehouses: [
-    { id: 'wh_majestic_main', name: 'Majestic Main Warehouse', location: 'San Jose, CA', capacity: 50_000, recorderIds: [MAJESTIC_OPERATOR] },
-    // No manager exists for this org and the operator is assigned to exactly
-    // one warehouse (Main) — a second warehouse with nobody assigned would
-    // have no one who could legitimately have recorded a movement there
-    // (admins are read-only on movements), so this site is left unstocked
-    // rather than inventing a fictional extra staff member.
-    { id: 'wh_majestic_east', name: 'Majestic East DC', location: 'Newark, NJ', capacity: 35_000, recorderIds: [] },
+    { id: 'wh_majestic_main', name: 'Majestic Main Warehouse', location: 'San Jose, CA', capacity: 50_000, recorderIds: [MAJESTIC_MANAGER] },
+    { id: 'wh_majestic_east', name: 'Majestic East DC', location: 'Newark, NJ', capacity: 35_000, recorderIds: [MAJESTIC_MANAGER] },
   ],
   catalog: MAJESTIC_CATALOG,
 };
@@ -190,6 +206,23 @@ async function seedOrganization(seed: OrgSeed): Promise<{ items: number; movemen
       data: seed.assignments.map(([userId, warehouseId]) => ({ userId, warehouseId })),
     });
   }
+
+  // Matches the default ROLE_PERMISSIONS matrix (see permissions.ts) — same
+  // backfill every real organization gets from the migration.
+  await prisma.rolePermission.createMany({
+    data: [
+      ...MANAGER_DEFAULT_PERMISSIONS.map((permission) => ({
+        organizationId: seed.orgId,
+        role: UserRole.MANAGER,
+        permission,
+      })),
+      ...OPERATOR_DEFAULT_PERMISSIONS.map((permission) => ({
+        organizationId: seed.orgId,
+        role: UserRole.OPERATOR,
+        permission,
+      })),
+    ],
+  });
 
   let itemCount = 0;
   let movementCount = 0;
@@ -293,11 +326,11 @@ async function main() {
     `Seeded PVP Logistics: 3 users, 3 warehouses, ${pvp.items} inventory items, ${pvp.movements} stock movements.`,
   );
   console.log(
-    `Seeded Majestic Electronics: 2 users, 2 warehouses (1 stocked), ${majestic.items} inventory items, ${majestic.movements} stock movements.`,
+    `Seeded Majestic Electronics: 2 users, 2 warehouses (2 stocked), ${majestic.items} inventory items, ${majestic.movements} stock movements.`,
   );
   console.log('\nSign in with the WorkOS accounts already provisioned for these emails:');
   console.log('  PVP Logistics       — admin: mtalhah@gmail.com · manager: thoufiq@gmail.com · operator: lumino640@gmail.com');
-  console.log('  Majestic Electronics — admin: nazrinthoufiq@gmail.com · operator: tazubair@gmail.com');
+  console.log('  Majestic Electronics — admin: nazrinthoufiq@gmail.com · manager: tazubair@gmail.com');
 }
 
 main()

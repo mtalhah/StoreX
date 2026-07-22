@@ -50,7 +50,19 @@
       "Skill(artifact-design:*)",
       "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\).scripts, null, 2\\)\\)\")",
       "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\).prisma, null, 2\\)\\)\")",
-      "Bash(node -e \"console.log\\(require\\('./package.json'\\).engines\\)\")"
+      "Bash(node -e \"console.log\\(require\\('./package.json'\\).engines\\)\")",
+      "Bash(mkdir -p \"z:/Work/T3C/StoreX/src/app/api/v1/permissions/roles/[role]\" \"z:/Work/T3C/StoreX/src/app/api/v1/users/[id]/permissions\")",
+      "Bash(npx eslint *)",
+      "Bash(npx next *)",
+      "Bash(docker stats *)",
+      "Bash(timeout 5 bash -c \"cat < /dev/null > /dev/tcp/136.112.80.161/5432\")",
+      "Bash(powershell -Command \"Get-Process -Name 'Docker Desktop' -ErrorAction SilentlyContinue\")",
+      "Bash(powershell -Command \"\\(Get-Item 'C:\\\\Program Files\\\\Docker\\\\Docker\\\\Docker Desktop.exe' -ErrorAction SilentlyContinue\\).Name\")",
+      "Bash(node -e ' *)",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\" http://localhost:3000)"
+    ],
+    "additionalDirectories": [
+      "z:\\Work\\T3C\\StoreX\\src\\app\\api\\v1\\permissions\\roles"
     ]
   }
 }

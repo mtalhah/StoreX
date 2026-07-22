@@ -21,11 +21,11 @@ export default async function AppLayout({ children }: { children: React.ReactNod
   // permission check; the Warehouses section has its own rule (admins always,
   // managers only when they run more than one warehouse, operators never).
   const navItems: Array<NavItem & { visible: boolean }> = [
-    { href: '/dashboard', label: 'Dashboard', icon: 'dashboard', visible: hasPermission(ctx.role, Permission.AnalyticsRead) },
+    { href: '/dashboard', label: 'Dashboard', icon: 'dashboard', visible: hasPermission(ctx, Permission.AnalyticsRead) },
     { href: '/warehouses', label: 'Warehouses', icon: 'warehouse', visible: canViewWarehousesSection(ctx) },
-    { href: '/inventory', label: 'Inventory', icon: 'inventory', visible: hasPermission(ctx.role, Permission.InventoryRead) },
-    { href: '/movements', label: 'Movements', icon: 'movements', visible: hasPermission(ctx.role, Permission.MovementsRead) },
-    { href: '/users', label: 'Users', icon: 'users', visible: hasPermission(ctx.role, Permission.UsersManage) },
+    { href: '/inventory', label: 'Inventory', icon: 'inventory', visible: hasPermission(ctx, Permission.InventoryRead) },
+    { href: '/movements', label: 'Movements', icon: 'movements', visible: hasPermission(ctx, Permission.MovementsRead) },
+    { href: '/users', label: 'Users', icon: 'users', visible: hasPermission(ctx, Permission.UsersManage) },
   ];
   const visibleItems = navItems
     .filter((item) => item.visible)

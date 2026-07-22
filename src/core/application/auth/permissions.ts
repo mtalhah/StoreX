@@ -25,27 +25,34 @@ export const Permission = {
 export type Permission = (typeof Permission)[keyof typeof Permission];
 
 /**
- * Role → permission matrix. Deliberately a separation-of-duties model:
+ * Default role → permission matrix, describing today's out-of-the-box
+ * separation-of-duties model:
  *  - ADMIN owns the org structure (users, warehouses) and has read-only
  *    visibility into the operational data — admins do NOT record movements
- *    or edit inventory themselves.
+ *    or edit inventory themselves. This list is also ADMIN's *permanent*
+ *    permission set: unlike MANAGER/OPERATOR, ADMIN has no editable
+ *    `RolePermission` rows and no per-user overrides apply to it (see
+ *    `resolveEffectivePermissions`) — kept fixed so an org can never
+ *    accidentally lock itself out of user management.
  *  - MANAGER and OPERATOR are both operational roles: they read + write
  *    inventory and stock movements for the warehouses they're assigned to,
  *    and read analytics scoped to those warehouses. They differ in
  *    warehouse assignment (operators are pinned to exactly one) and in
  *    whether the Warehouses section is shown (see `canViewWarehousesSection`)
- *    — and, deliberately, in `MovementsManage`: only MANAGER can edit or
- *    delete a previously recorded movement (correcting quantity/note on an
- *    existing ledger row, atomically re-deriving the item's materialized
- *    quantity — see StockMovementService.update/delete). OPERATOR can
- *    record new movements but not rewrite history; an operator's mistake
- *    needs a manager to fix it. This is the one intentional asymmetry
- *    between the two operational roles.
+ *    — and, by default, in `MovementsManage`: only MANAGER starts with the
+ *    ability to edit or delete a previously recorded movement (correcting
+ *    quantity/note on an existing ledger row, atomically re-deriving the
+ *    item's materialized quantity — see StockMovementService.update/delete).
+ *    An admin can customize either role's permissions (org-wide, via
+ *    `RolePermission`) or grant/revoke exceptions for an individual person
+ *    (via `UserPermissionOverride`) — this matrix is only the seed applied
+ *    to a new organization and the fallback used to resolve `ADMIN`.
  *
- * WarehousesRead is granted to every role because the inventory/movements
- * UIs list warehouses to populate scoped dropdowns; the list endpoint is
- * already tenant/warehouse-scoped, so a non-admin only ever sees their own
- * warehouses. Visibility of the Warehouses *section* is a separate rule.
+ * WarehousesRead is granted to every role by default because the
+ * inventory/movements UIs list warehouses to populate scoped dropdowns; the
+ * list endpoint is already tenant/warehouse-scoped, so a non-admin only ever
+ * sees their own warehouses. Visibility of the Warehouses *section* is a
+ * separate rule.
  */
 const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
   ADMIN: [
@@ -76,13 +83,48 @@ const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
   ],
 };
 
-export function hasPermission(role: UserRole, permission: Permission): boolean {
-  return ROLE_PERMISSIONS[role].includes(permission);
+/**
+ * Default permission list for a role — used to seed a new organization's
+ * editable `RolePermission` rows and to resolve ADMIN (which is never
+ * customizable; see `resolveEffectivePermissions`). Not the authorization
+ * source of truth for MANAGER/OPERATOR once an org exists — `TenantContext`
+ * carries the actually-resolved `permissions` for that.
+ */
+export function defaultPermissionsForRole(role: UserRole): readonly Permission[] {
+  return ROLE_PERMISSIONS[role];
+}
+
+/**
+ * Combines a role's baseline permissions with per-user grant/revoke
+ * exceptions into the final effective set. ADMIN ignores `rolePermissions`
+ * entirely and always resolves to its fixed default list — ADMIN is not
+ * editable at the role or per-user level (see UserPermissionOverride /
+ * RolePermission schema comments for why: it's the one role that must never
+ * be able to lock an organization out of user management).
+ */
+export function resolveEffectivePermissions(
+  role: UserRole,
+  rolePermissions: readonly Permission[],
+  overrides: readonly { permission: Permission; effect: 'GRANT' | 'REVOKE' }[],
+): Permission[] {
+  const effective = new Set(role === 'ADMIN' ? ROLE_PERMISSIONS.ADMIN : rolePermissions);
+  if (role !== 'ADMIN') {
+    for (const override of overrides) {
+      if (override.effect === 'GRANT') effective.add(override.permission);
+      else effective.delete(override.permission);
+    }
+  }
+  return [...effective];
+}
+
+/** Whether the context's resolved permission set includes `permission`. */
+export function hasPermission(ctx: TenantContext, permission: Permission): boolean {
+  return ctx.permissions.includes(permission);
 }
 
 /** Throws ForbiddenError when the context's role lacks the permission. */
 export function authorize(ctx: TenantContext, permission: Permission): void {
-  if (!hasPermission(ctx.role, permission)) {
+  if (!hasPermission(ctx, permission)) {
     throw new ForbiddenError();
   }
 }

@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import { MOVEMENT_TYPES, USER_ROLES } from '@/core/domain/enums';
 import { USER_STATUS_FILTERS } from '@/core/application/ports/user-repository';
+import { Permission } from '@/core/application/auth/permissions';
 
 /** Zod schemas for query strings and request bodies (API boundary only). */
 
@@ -40,7 +41,7 @@ export const warehouseUpdateSchema = warehouseCreateSchema
 // ---------- inventory ----------
 
 export const inventoryListSchema = paginationSchema.extend({
-  sortBy: z.enum(['sku', 'name', 'quantity', 'updatedAt']).default('sku'),
+  sortBy: z.enum(['sku', 'name', 'quantity', 'storageUnitsPerItem', 'updatedAt']).default('sku'),
   sortDir: sortDirSchema.default('asc'),
   search: z.string().trim().min(1).max(120).optional(),
   warehouseId: z.string().min(1).optional(),
@@ -162,6 +163,29 @@ export const userUpdateSchema = z
     isActive: z.boolean().optional(),
   })
   .refine((v) => Object.keys(v).length > 0, requireSomeField);
+
+// ---------- permissions ----------
+
+const permissionValueSchema = z.enum(Object.values(Permission) as [Permission, ...Permission[]]);
+/** MANAGER/OPERATOR only — ADMIN's permissions are fixed (see permissions.ts). */
+const editableRoleSchema = z.enum(['MANAGER', 'OPERATOR']);
+
+export const roleParamSchema = z.object({ role: editableRoleSchema });
+
+export const rolePermissionsUpdateSchema = z.object({
+  permissions: z.array(permissionValueSchema).max(Object.values(Permission).length),
+});
+
+export const userPermissionOverridesUpdateSchema = z.object({
+  overrides: z
+    .array(
+      z.object({
+        permission: permissionValueSchema,
+        effect: z.enum(['GRANT', 'REVOKE']),
+      }),
+    )
+    .max(Object.values(Permission).length),
+});
 
 // ---------- analytics ----------
 
