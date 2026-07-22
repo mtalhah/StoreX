@@ -356,6 +356,8 @@ export function UsersView({ currentUserId }: { currentUserId: string }) {
           loading={list.isLoading}
           meta={list.meta}
           onPageChange={list.setPage}
+          pageSizeOptions={[10, 20, 50, 100]}
+          onPageSizeChange={list.setPageSize}
           onSortChange={list.setSort}
           gridOptions={
             isMobile ? { onRowClicked: handleRowClicked, rowStyle: { cursor: 'pointer' } } : undefined

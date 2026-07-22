@@ -66,22 +66,36 @@ export function InsightsGrid({ days }: { days: number }) {
   const [filtersOpen, setFiltersOpen] = useState(false);
   const [pending, setPending] = useState<InsightFilters>(EMPTY_FILTERS);
   const [viewing, setViewing] = useState<InventoryInsightRow | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
 
   const activeFilterCount = Object.values(filters).filter(Boolean).length;
 
+  // The period selector lives outside this component; a new period changes
+  // the result set, so any page position from the old period is stale.
+  const [prevDays, setPrevDays] = useState(days);
+  if (days !== prevDays) {
+    setPrevDays(days);
+    setPage(1);
+  }
+
   const query = useMemo(() => {
-    const params = new URLSearchParams({ days: String(days) });
+    const params = new URLSearchParams({
+      days: String(days),
+      page: String(page),
+      pageSize: String(pageSize),
+    });
     if (filters.warehouseId) params.set('warehouseId', filters.warehouseId);
     if (filters.status) params.set('status', filters.status);
     if (filters.lastMovementFrom) params.set('lastMovementFrom', filters.lastMovementFrom);
     if (filters.lastMovementTo) params.set('lastMovementTo', filters.lastMovementTo);
     return `/api/v1/analytics/insights?${params.toString()}`;
-  }, [days, filters]);
+  }, [days, filters, page, pageSize]);
 
   const { data, isLoading } = useSWR<ApiResult<InventoryInsightRow[]>>(
     query,
     swrFetcher<InventoryInsightRow[]>,
-    { refreshInterval: 300_000 },
+    { refreshInterval: 300_000, keepPreviousData: true },
   );
   const rows = data?.data ?? [];
 
@@ -92,38 +106,44 @@ export function InsightsGrid({ days }: { days: number }) {
 
   const applyFilters = () => {
     setFilters(pending);
+    setPage(1);
     setFiltersOpen(false);
   };
 
   const clearFilters = () => {
     setPending(EMPTY_FILTERS);
     setFilters(EMPTY_FILTERS);
+    setPage(1);
     setFiltersOpen(false);
   };
 
+  // Sorting is server-side paged (warehouse, then SKU) — per-column client
+  // sort is disabled since it would only reorder the current page.
   const columnDefs = useMemo<ColDef<InventoryInsightRow>[]>(() => {
     if (isMobile) {
       return [
-        { field: 'warehouseName', headerName: 'Warehouse', minWidth: 130, flex: 1 },
-        { field: 'itemName', headerName: 'Item', minWidth: 130, flex: 1 },
+        { field: 'warehouseName', headerName: 'Warehouse', minWidth: 130, flex: 1, sortable: false },
+        { field: 'itemName', headerName: 'Item', minWidth: 130, flex: 1, sortable: false },
         {
           field: 'status',
           headerName: 'Status',
           minWidth: 110,
+          sortable: false,
           cellRenderer: (p: { value: StockStatus }) => <StatusBadge value={p.value} />,
         },
       ];
     }
     return [
-      { field: 'warehouseName', headerName: 'Warehouse', minWidth: 170 },
-      { field: 'sku', headerName: 'SKU', minWidth: 120 },
-      { field: 'itemName', headerName: 'Item', minWidth: 200, flex: 2 },
+      { field: 'warehouseName', headerName: 'Warehouse', minWidth: 170, sortable: false },
+      { field: 'sku', headerName: 'SKU', minWidth: 120, sortable: false },
+      { field: 'itemName', headerName: 'Item', minWidth: 200, flex: 2, sortable: false },
       {
         field: 'quantity',
         headerName: 'On hand',
         type: 'rightAligned',
         valueFormatter: (p) => formatNumber(p.value ?? 0),
         maxWidth: 120,
+        sortable: false,
       },
       {
         field: 'inboundInPeriod',
@@ -131,6 +151,7 @@ export function InsightsGrid({ days }: { days: number }) {
         type: 'rightAligned',
         valueFormatter: (p) => formatNumber(p.value ?? 0),
         maxWidth: 110,
+        sortable: false,
       },
       {
         field: 'outboundInPeriod',
@@ -138,17 +159,20 @@ export function InsightsGrid({ days }: { days: number }) {
         type: 'rightAligned',
         valueFormatter: (p) => formatNumber(p.value ?? 0),
         maxWidth: 110,
+        sortable: false,
       },
       {
         field: 'lastMovementAt',
         headerName: 'Last movement',
         minWidth: 150,
         valueFormatter: (p) => (p.value ? formatDateTime(p.value) : '—'),
+        sortable: false,
       },
       {
         field: 'status',
         headerName: 'Status',
         minWidth: 130,
+        sortable: false,
         cellRenderer: (p: { value: StockStatus }) => <StatusBadge value={p.value} />,
       },
     ];
@@ -270,6 +294,13 @@ export function InsightsGrid({ days }: { days: number }) {
           columnDefs={columnDefs}
           rows={rows}
           loading={isLoading}
+          meta={data?.meta}
+          onPageChange={setPage}
+          pageSizeOptions={[5, 10, 20, 50, 100]}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
           gridOptions={
             isMobile
               ? { onRowClicked: handleRowClicked, rowStyle: { cursor: 'pointer' } }

@@ -24,7 +24,7 @@ export function usePaginated<T>(
 ) {
   const [state, setState] = useState<PaginatedQueryState>({
     page: 1,
-    pageSize: 25,
+    pageSize: 10,
     sortDir: 'asc',
     search: '',
     filters: {},
@@ -53,6 +53,7 @@ export function usePaginated<T>(
     meta: swr.data?.meta,
     state,
     setPage: (page: number) => setState((s) => ({ ...s, page })),
+    setPageSize: (pageSize: number) => setState((s) => ({ ...s, pageSize, page: 1 })),
     setSearch: (search: string) => setState((s) => ({ ...s, search, page: 1 })),
     setSort: (sortBy: string, sortDir: 'asc' | 'desc') =>
       setState((s) => ({ ...s, sortBy, sortDir, page: 1 })),

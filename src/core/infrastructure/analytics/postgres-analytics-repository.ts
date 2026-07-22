@@ -1,5 +1,7 @@
 import { ANALYTICS_THRESHOLDS } from '@/core/application/analytics-thresholds';
 import type { TenantContext } from '@/core/application/auth/tenant-context';
+import type { PageParams, Paginated } from '@/core/application/dto/common';
+import { paginate } from '@/core/application/dto/common';
 import type {
   AnalyticsRepository,
   DashboardKpis,
@@ -170,7 +172,8 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
   async getInventoryInsights(
     days: number,
     filters: InventoryInsightFilters = {},
-  ): Promise<InventoryInsightRow[]> {
+    page: PageParams,
+  ): Promise<Paginated<InventoryInsightRow>> {
     const sincePeriod = new Date(Date.now() - days * DAY_MS);
     const deadCutoff = new Date(Date.now() - ANALYTICS_THRESHOLDS.deadStockDays * DAY_MS);
 
@@ -203,7 +206,7 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
     const lastMovementFrom = filters.lastMovementFrom ? new Date(filters.lastMovementFrom) : null;
     const lastMovementTo = filters.lastMovementTo ? new Date(filters.lastMovementTo) : null;
 
-    return items
+    const filtered = items
       .map((item) => {
         const inboundInPeriod = flow(item.id, 'INBOUND');
         const outboundInPeriod = flow(item.id, 'OUTBOUND');
@@ -230,5 +233,8 @@ export class PostgresAnalyticsRepository implements AnalyticsRepository {
       .filter((row) => !filters.status || row.status === filters.status)
       .filter((row) => !lastMovementFrom || (row.lastMovementAt && new Date(row.lastMovementAt) >= lastMovementFrom))
       .filter((row) => !lastMovementTo || (row.lastMovementAt && new Date(row.lastMovementAt) <= lastMovementTo));
+
+    const start = (page.page - 1) * page.pageSize;
+    return paginate(filtered.slice(start, start + page.pageSize), filtered.length, page);
   }
 }

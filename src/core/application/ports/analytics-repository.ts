@@ -1,3 +1,5 @@
+import type { PageParams, Paginated } from '../dto/common';
+
 /**
  * Read-only analytics port (OLAP). The production implementation reads from
  * BigQuery — never from the transactional database. Implementations must
@@ -84,6 +86,7 @@ export interface AnalyticsRepository {
   getWarehouseUtilization(): Promise<WarehouseUtilizationRow[]>;
   getInventoryInsights(
     days: number,
-    filters?: InventoryInsightFilters,
-  ): Promise<InventoryInsightRow[]>;
+    filters: InventoryInsightFilters | undefined,
+    page: PageParams,
+  ): Promise<Paginated<InventoryInsightRow>>;
 }

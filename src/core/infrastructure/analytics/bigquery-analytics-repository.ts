@@ -1,5 +1,7 @@
 import { ANALYTICS_THRESHOLDS } from '@/core/application/analytics-thresholds';
 import type { TenantContext } from '@/core/application/auth/tenant-context';
+import type { PageParams, Paginated } from '@/core/application/dto/common';
+import { paginate } from '@/core/application/dto/common';
 import type {
   AnalyticsRepository,
   DashboardKpis,
@@ -180,7 +182,8 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
   async getInventoryInsights(
     days: number,
     filters: InventoryInsightFilters = {},
-  ): Promise<InventoryInsightRow[]> {
+    page: PageParams,
+  ): Promise<Paginated<InventoryInsightRow>> {
     const ds = analyticsDataset();
     const rows = await this.run<{
       warehouseId: string;
@@ -192,6 +195,7 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
       outboundInPeriod: number;
       lastMovementAt: { value: string } | string | null;
       status: StockStatus;
+      totalItems: number;
     }>(
       `
       WITH mvp AS (
@@ -233,6 +237,24 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
         LEFT JOIN last_mv l ON l.inventory_item_id = i.inventory_item_id
         WHERE i.organization_id = @orgId
           AND (@scopeAll OR i.warehouse_id IN UNNEST(@warehouseIds))
+      ),
+      filtered AS (
+        SELECT
+          warehouseId,
+          warehouseName,
+          sku,
+          itemName,
+          quantity,
+          inboundInPeriod,
+          outboundInPeriod,
+          FORMAT_TIMESTAMP('%FT%TZ', lastMovementAtRaw) AS lastMovementAt,
+          lastMovementAtRaw,
+          status
+        FROM classified
+        WHERE (@warehouseId IS NULL OR warehouseId = @warehouseId)
+          AND (@status IS NULL OR status = @status)
+          AND (@lastMovementFrom IS NULL OR DATE(lastMovementAtRaw) >= @lastMovementFrom)
+          AND (@lastMovementTo IS NULL OR DATE(lastMovementAtRaw) <= @lastMovementTo)
       )
       SELECT
         warehouseId,
@@ -242,14 +264,12 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
         quantity,
         inboundInPeriod,
         outboundInPeriod,
-        FORMAT_TIMESTAMP('%FT%TZ', lastMovementAtRaw) AS lastMovementAt,
-        status
-      FROM classified
-      WHERE (@warehouseId IS NULL OR warehouseId = @warehouseId)
-        AND (@status IS NULL OR status = @status)
-        AND (@lastMovementFrom IS NULL OR DATE(lastMovementAtRaw) >= @lastMovementFrom)
-        AND (@lastMovementTo IS NULL OR DATE(lastMovementAtRaw) <= @lastMovementTo)
+        lastMovementAt,
+        status,
+        COUNT(*) OVER() AS totalItems
+      FROM filtered
       ORDER BY warehouseName, sku
+      LIMIT @pageSize OFFSET @offset
       `,
       {
         lowStockQty: ANALYTICS_THRESHOLDS.lowStockQty,
@@ -260,6 +280,8 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
         status: filters.status ?? null,
         lastMovementFrom: filters.lastMovementFrom ? bigquery.date(filters.lastMovementFrom) : null,
         lastMovementTo: filters.lastMovementTo ? bigquery.date(filters.lastMovementTo) : null,
+        pageSize: page.pageSize,
+        offset: (page.page - 1) * page.pageSize,
       },
       {
         warehouseId: 'STRING',
@@ -269,7 +291,7 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
       },
     );
 
-    return rows.map((r) => ({
+    const items = rows.map((r) => ({
       warehouseId: r.warehouseId,
       warehouseName: r.warehouseName,
       sku: r.sku,
@@ -285,5 +307,7 @@ export class BigQueryAnalyticsRepository implements AnalyticsRepository {
             : r.lastMovementAt.value,
       status: r.status,
     }));
+
+    return paginate(items, rows.length > 0 ? Number(rows[0].totalItems) : 0, page);
   }
 }

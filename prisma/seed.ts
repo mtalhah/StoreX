@@ -272,25 +272,36 @@ async function seedOrganization(seed: OrgSeed): Promise<{ items: number; movemen
 
       const activityDays = isDeadStock ? 30 : 88; // dead stock stops moving after day ~60
       const movesPerWeek = isFastMover ? 9 : 3;
+      // Wobble magnitude scales with the item's own opening level (not a
+      // fixed absolute range) and is mean-reverting + hard-ceilinged at 2x
+      // opening. An earlier version used a fixed inbound range (20-200) that
+      // was systematically larger than the outbound range (5-120) — over the
+      // ~90+ events a fast mover accumulates that asymmetry drifted
+      // quantities into the thousands regardless of warehouse capacity
+      // (e.g. a ratio=8 SKU alone consumed half a warehouse's capacity).
+      const wobbleMax = Math.max(5, Math.round(opening * (isFastMover ? 0.12 : 0.08)));
+      const ceiling = opening * 2;
       for (let day = 89; day >= 90 - activityDays; day--) {
         if (rand() > movesPerWeek / 7) continue;
-        const outbound = rand() < 0.55;
+        const outboundBias = quantity > opening ? 0.6 : 0.4;
+        const outbound = quantity > 0 && rand() < outboundBias;
+        const qty = randInt(1, wobbleMax);
         if (outbound) {
-          if (quantity === 0) continue;
-          const qty = Math.min(quantity, randInt(5, isFastMover ? 120 : 40));
-          quantity -= qty;
+          const applied = Math.min(quantity, qty);
+          quantity -= applied;
           movements.push({
             type: MovementType.OUTBOUND,
-            quantity: qty,
+            quantity: applied,
             occurredAt: new Date(now - day * DAY + randInt(6, 20) * 60 * 60 * 1000),
             createdById: pick(warehouse.recorderIds),
           });
         } else {
-          const qty = randInt(20, isFastMover ? 200 : 80);
-          quantity += qty;
+          const applied = Math.min(qty, ceiling - quantity);
+          if (applied <= 0) continue;
+          quantity += applied;
           movements.push({
             type: MovementType.INBOUND,
-            quantity: qty,
+            quantity: applied,
             occurredAt: new Date(now - day * DAY + randInt(6, 20) * 60 * 60 * 1000),
             createdById: pick(warehouse.recorderIds),
           });

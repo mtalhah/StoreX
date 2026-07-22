@@ -1,6 +1,7 @@
 import { ValidationError } from '@/core/domain/errors';
 import { authorize, Permission } from '../auth/permissions';
 import type { TenantContext } from '../auth/tenant-context';
+import type { PageParams, Paginated } from '../dto/common';
 import type {
   AnalyticsRepository,
   DashboardKpis,
@@ -43,10 +44,11 @@ export class AnalyticsService {
 
   async inventoryInsights(
     days: number,
-    filters?: InventoryInsightFilters,
-  ): Promise<InventoryInsightRow[]> {
+    filters: InventoryInsightFilters | undefined,
+    page: PageParams,
+  ): Promise<Paginated<InventoryInsightRow>> {
     authorize(this.ctx, Permission.AnalyticsRead);
     assertValidPeriod(days);
-    return this.analytics.getInventoryInsights(days, filters);
+    return this.analytics.getInventoryInsights(days, filters, page);
   }
 }

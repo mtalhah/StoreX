@@ -131,10 +131,18 @@ function genMovements(
   const extra = total - 1;
   const oldestDay = WINDOW_DAYS - 2;
   const wobbleMax = Math.max(1, Math.round(target * 0.3));
+  // Mean-reverting bias plus a hard ceiling at 2x target: a plain 50/50
+  // symmetric walk still drifts upward over many steps whenever it dips near
+  // zero (outbound gets capped there but inbound never does — a "reflecting
+  // barrier"), so HOT items with up to ~149 wobble steps could still run
+  // away on an unlucky seed. The ceiling makes the bound provable, not just
+  // probable.
+  const ceiling = target * 2;
   for (let i = 0; i < extra; i++) {
     const dayOffset = Math.max(0, Math.round(oldestDay - (i / Math.max(extra - 1, 1)) * oldestDay));
     const qty = randInt(1, wobbleMax);
-    const outbound = quantity > 0 && rand() < 0.5;
+    const outboundBias = quantity > target ? 0.6 : 0.4;
+    const outbound = quantity > 0 && rand() < outboundBias;
     if (outbound) {
       const applied = Math.min(quantity, qty);
       quantity -= applied;
@@ -146,11 +154,13 @@ function genMovements(
         createdById: pick(recorderIds),
       });
     } else {
-      quantity += qty;
+      const applied = Math.min(qty, ceiling - quantity);
+      if (applied <= 0) continue;
+      quantity += applied;
       movements.push({
         id: `${idPrefix}_${String(i + 1).padStart(3, '0')}`,
         type: MovementType.INBOUND,
-        quantity: qty,
+        quantity: applied,
         dayOffset,
         createdById: pick(recorderIds),
       });

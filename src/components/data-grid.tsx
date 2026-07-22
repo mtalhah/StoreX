@@ -11,6 +11,13 @@ import {
 import { AgGridReact } from 'ag-grid-react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import type { PaginationMeta } from '@/lib/api/response';
 import { formatNumber } from '@/lib/format';
 
@@ -37,6 +44,9 @@ export interface DataGridProps<T> {
   /** Server-side pagination footer; omit for client-only grids. */
   meta?: PaginationMeta;
   onPageChange?: (page: number) => void;
+  /** Page size selector shown alongside the pager; omit to hide it. */
+  pageSizeOptions?: number[];
+  onPageSizeChange?: (pageSize: number) => void;
   /** Server-side sorting: single-column sort forwarded to the API. */
   onSortChange?: (sortBy: string, sortDir: 'asc' | 'desc') => void;
   gridOptions?: GridOptions<T>;
@@ -61,6 +71,8 @@ export function DataGrid<T>({
   loading,
   meta,
   onPageChange,
+  pageSizeOptions,
+  onPageSizeChange,
   onSortChange,
   gridOptions,
 }: DataGridProps<T>) {
@@ -88,32 +100,54 @@ export function DataGrid<T>({
         />
       </div>
       {meta && onPageChange && (
-        <div className="flex items-center justify-between px-1 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center justify-between gap-3 px-1 text-sm text-muted-foreground">
           <span>
             {formatNumber(meta.totalItems)} {meta.totalItems === 1 ? 'record' : 'records'}
           </span>
-          <div className="flex items-center gap-2">
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-8"
-              disabled={meta.page <= 1 || loading}
-              onClick={() => onPageChange(meta.page - 1)}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <span className="tabular-nums">
-              Page {meta.page} of {meta.totalPages}
-            </span>
-            <Button
-              variant="outline"
-              size="icon"
-              className="size-8"
-              disabled={meta.page >= meta.totalPages || loading}
-              onClick={() => onPageChange(meta.page + 1)}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
+          <div className="flex items-center gap-4">
+            {pageSizeOptions && onPageSizeChange && (
+              <div className="flex items-center gap-2">
+                <span className="whitespace-nowrap">Rows per page</span>
+                <Select
+                  value={String(meta.pageSize)}
+                  onValueChange={(v) => onPageSizeChange(Number(v))}
+                >
+                  <SelectTrigger className="h-8 w-[72px]" disabled={loading}>
+                    <SelectValue>{String(meta.pageSize)}</SelectValue>
+                  </SelectTrigger>
+                  <SelectContent>
+                    {pageSizeOptions.map((size) => (
+                      <SelectItem key={size} value={String(size)}>
+                        {size}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+            <div className="flex items-center gap-2">
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-8"
+                disabled={meta.page <= 1 || loading}
+                onClick={() => onPageChange(meta.page - 1)}
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <span className="tabular-nums">
+                Page {meta.page} of {meta.totalPages}
+              </span>
+              <Button
+                variant="outline"
+                size="icon"
+                className="size-8"
+                disabled={meta.page >= meta.totalPages || loading}
+                onClick={() => onPageChange(meta.page + 1)}
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+            </div>
           </div>
         </div>
       )}
