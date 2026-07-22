@@ -5,7 +5,13 @@ export interface InventoryItemWithWarehouse extends InventoryItem {
   warehouseName: string;
 }
 
-export type InventorySortField = 'sku' | 'name' | 'quantity' | 'storageUnitsPerItem' | 'updatedAt';
+export type InventorySortField =
+  | 'sku'
+  | 'name'
+  | 'quantity'
+  | 'storageUnitsPerItem'
+  | 'totalStorageUnits'
+  | 'updatedAt';
 
 export interface InventoryListQuery extends PageParams {
   sortBy: InventorySortField;

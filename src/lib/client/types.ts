@@ -26,6 +26,8 @@ export interface InventoryRow {
   quantity: number;
   /** Canonical storage-unit-per-item ratio (see Warehouse.capacity). */
   storageUnitsPerItem: number;
+  /** DB-generated: quantity * storageUnitsPerItem. */
+  totalStorageUnits: number;
   createdAt: string;
   updatedAt: string;
 }

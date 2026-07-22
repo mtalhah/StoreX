@@ -41,7 +41,9 @@ export const warehouseUpdateSchema = warehouseCreateSchema
 // ---------- inventory ----------
 
 export const inventoryListSchema = paginationSchema.extend({
-  sortBy: z.enum(['sku', 'name', 'quantity', 'storageUnitsPerItem', 'updatedAt']).default('sku'),
+  sortBy: z
+    .enum(['sku', 'name', 'quantity', 'storageUnitsPerItem', 'totalStorageUnits', 'updatedAt'])
+    .default('sku'),
   sortDir: sortDirSchema.default('asc'),
   search: z.string().trim().min(1).max(120).optional(),
   warehouseId: z.string().min(1).optional(),

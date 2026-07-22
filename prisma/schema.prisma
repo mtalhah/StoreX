@@ -188,6 +188,11 @@ model InventoryItem {
   /// itemsPerStorageUnit — and converts it to this canonical value before
   /// persisting. Defaults to 1 (one storage unit per item). CHECK (> 0).
   storageUnitsPerItem Decimal @db.Decimal(12, 6) @default(1)
+  /// Postgres-generated column (quantity * storageUnitsPerItem), maintained
+  /// by the DB on every write so it works with any update path (incl. the
+  /// conditional-update guard in StockMovementService). Never written from
+  /// application code.
+  totalStorageUnits   Decimal @db.Decimal(28, 6) @default(dbgenerated("(quantity * \"storageUnitsPerItem\")"))
   createdAt      DateTime @default(now())
   updatedAt      DateTime @updatedAt
 

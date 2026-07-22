@@ -1124,6 +1124,7 @@ export const InventoryItemScalarFieldEnum = {
   name: 'name',
   quantity: 'quantity',
   storageUnitsPerItem: 'storageUnitsPerItem',
+  totalStorageUnits: 'totalStorageUnits',
   createdAt: 'createdAt',
   updatedAt: 'updatedAt'
 } as const

@@ -127,12 +127,10 @@ export function InventoryView() {
         maxWidth: 150,
       },
       {
-        colId: 'totalStorageUnits',
+        field: 'totalStorageUnits',
         headerName: 'Total storage',
         headerTooltip: 'Warehouse storage units consumed by this SKU: quantity × storage units / item.',
         type: 'rightAligned',
-        sortable: false,
-        valueGetter: (p) => (p.data ? p.data.quantity * (p.data.storageUnitsPerItem ?? 1) : 0),
         valueFormatter: (p) => formatDecimal(p.value ?? 0),
         maxWidth: 140,
       },
@@ -229,10 +227,7 @@ export function InventoryView() {
                 { label: 'Warehouse', value: viewing.warehouseName },
                 { label: 'Qty', value: formatNumber(viewing.quantity) },
                 { label: 'Storage units / item', value: formatDecimal(viewing.storageUnitsPerItem ?? 1) },
-                {
-                  label: 'Total storage',
-                  value: formatDecimal(viewing.quantity * (viewing.storageUnitsPerItem ?? 1)),
-                },
+                { label: 'Total storage', value: formatDecimal(viewing.totalStorageUnits) },
                 { label: 'Updated', value: viewing.updatedAt ? formatDateTime(viewing.updatedAt) : '' },
               ]
             : []

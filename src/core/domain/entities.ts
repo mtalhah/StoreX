@@ -45,6 +45,8 @@ export interface InventoryItem {
   quantity: number;
   /** Canonical storage-unit consumption per item (see Warehouse.capacity). */
   storageUnitsPerItem: number;
+  /** DB-generated: quantity * storageUnitsPerItem. Never written from app code. */
+  totalStorageUnits: number;
   createdAt: Date;
   updatedAt: Date;
 }

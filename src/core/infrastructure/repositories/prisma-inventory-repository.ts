@@ -23,7 +23,11 @@ type InventoryItemRow = Prisma.InventoryItemGetPayload<Record<string, never>>;
  * here rather than leaking decimal.js into the application layer.
  */
 function toDomain(row: InventoryItemRow): InventoryItem {
-  return { ...row, storageUnitsPerItem: row.storageUnitsPerItem.toNumber() };
+  return {
+    ...row,
+    storageUnitsPerItem: row.storageUnitsPerItem.toNumber(),
+    totalStorageUnits: row.totalStorageUnits.toNumber(),
+  };
 }
 
 export class PrismaInventoryRepository implements InventoryRepository {
