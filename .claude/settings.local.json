@@ -45,7 +45,12 @@
       "Bash(npx tsc *)",
       "Bash(echo \"EXIT: $?\")",
       "Bash(echo \"exit: $?\")",
-      "Bash(npx tsx *)"
+      "Bash(npx tsx *)",
+      "Skill(artifact-design)",
+      "Skill(artifact-design:*)",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\).scripts, null, 2\\)\\)\")",
+      "Bash(node -e \"console.log\\(JSON.stringify\\(require\\('./package.json'\\).prisma, null, 2\\)\\)\")",
+      "Bash(node -e \"console.log\\(require\\('./package.json'\\).engines\\)\")"
     ]
   }
 }

@@ -399,11 +399,13 @@ Domain error codes map to transport codes in one place: 400 validation,
 ## Local development
 
 Prereqs: Node 22+, Docker, a free [WorkOS](https://dashboard.workos.com) account.
+For a more detailed, step-by-step walkthrough (including troubleshooting),
+see [LOCALSETUP.md](LOCALSETUP.md).
 
 ```bash
 npm install
 docker compose up -d                  # local PostgreSQL 16
-cp .env.example .env                  # fill in the WorkOS values
+cp .env.example .env                  # fill in the WorkOS values, set ANALYTICS_SOURCE=postgres
 npx prisma migrate deploy && npx prisma db seed
 npm run dev                           # http://localhost:3000
 npm run smoke                         # exercises services/repos against the seeded DB
@@ -412,13 +414,21 @@ npm run smoke                         # exercises services/repos against the see
 WorkOS dashboard setup (free tier): create an app → copy `WORKOS_API_KEY` and
 `WORKOS_CLIENT_ID` → add redirect URI `http://localhost:3000/api/auth/callback`.
 
-The seed creates the **Acme Logistics** demo tenant: 3 warehouses, 6 users,
-~28 SKUs, and ~90 days of movement history. To sign in as a seeded role, set
-`SEED_ADMIN_EMAIL` (and/or `SEED_MANAGER_EMAIL`, `SEED_OPERATOR_EMAIL`) to an
-email you can authenticate with **before** seeding — first sign-in links the
-WorkOS identity by email. Signing in with any other email lands on the
-**onboarding** screen, where naming a company creates a fresh empty tenant
-(you become its admin) — the quickest way to see tenant isolation.
+`.env.example` defaults `ANALYTICS_SOURCE` to `bigquery` (the production
+value) — for local dev without a GCP project, set it to `postgres` (see
+[Analytics pipeline](#analytics-pipeline)) or the dashboard will throw
+`GCP_PROJECT_ID must be set`.
+
+The seed creates two fixed tenants — **PVP Logistics** (3 warehouses, 3
+users, 12 SKUs) and **Majestic Electronics** (2 warehouses, one unstocked, 2
+users, 12 SKUs) — each with ~90 days of movement history, by re-running
+[prisma/seed.ts](prisma/seed.ts). Sign-in emails are hardcoded in that file
+rather than read from an env var: PVP Logistics as admin/manager/operator, and
+Majestic Electronics as admin/operator (see the file for the current
+addresses and roles) — you'll need a WorkOS account under one of those
+addresses to sign in as a seeded user. Signing in with any other email lands
+on the **onboarding** screen, where naming a company creates a fresh empty
+tenant (you become its admin) — the quickest way to see tenant isolation.
 
 ## Deployment
 
